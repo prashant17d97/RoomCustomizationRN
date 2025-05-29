@@ -1,0 +1,21 @@
+<resources>
+    <string name="tap_on_camera_to_add_photo">Tap on camera to add photo</string>
+    <string name="camera">Camera</string>
+    <string name="share">Share</string>
+    <string name="color_palette">Color Palatte</string>
+    <string name="moon">Moon</string>
+    <string name="sun">Sun</string>
+    <string name="low">Low</string>
+    <string name="high">High</string>
+    <string name="fill_color">FIll Color Sample</string>
+    <string name="paint_roller">Paint Roller</string>
+    <string name="undo">Undo</string>
+    <string name="erase">Erase</string>
+    <string name="button_ok">Ok</string>
+    <string name="no">No</string>
+    <string name="yes">Yes</string>
+    <string name="choose_from_camera">Choose Camera</string>
+    <string name="gallery">Gallery</string>
+    <string name="choose_from_album">Choose from gallery</string>
+    <string name="close">Close</string>
+</resources>

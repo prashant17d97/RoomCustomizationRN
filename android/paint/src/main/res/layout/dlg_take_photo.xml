@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Main content layout centered in parent -->
+    <LinearLayout
+        android:id="@+id/mainContentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <!-- Camera section -->
+        <LinearLayout
+            android:id="@+id/layoutTakePhoto"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageButton
+                android:id="@+id/takePhotoButton"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:layout_margin="16.dp"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:contentDescription="@string/camera"
+                android:focusable="true"
+                android:src="@drawable/camera_request" />
+
+            <TextView
+                android:id="@+id/takePhotoTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/choose_from_camera"
+                android:textAlignment="gravity"
+                android:textColor="?android:textColorPrimary"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <!-- Album section -->
+        <LinearLayout
+            android:id="@+id/layoutChooseFromAlbum"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageButton
+                android:id="@+id/chooseFromAlbumButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="16.dp"
+                android:background="@android:color/transparent"
+                android:clickable="true"
+                android:contentDescription="@string/gallery"
+                android:focusable="true"
+                android:src="@drawable/outline_image_24" />
+
+            <TextView
+                android:id="@+id/chooseFromAlbumTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="38sp"
+                android:text="@string/choose_from_album"
+                android:textAlignment="gravity"
+                android:textColor="?android:textColorPrimary"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Close button -->
+    <ImageButton
+        android:id="@+id/closeButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentEnd="true"
+        android:layout_margin="16dp"
+        android:background="@drawable/ic_close_btn"
+        android:contentDescription="@string/close" />
+
+</RelativeLayout>

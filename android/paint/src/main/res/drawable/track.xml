@@ -1,0 +1,6 @@
+<!-- res/drawable/horizontal_line.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <size android:height="0.1dp" /> <!-- Line thickness -->
+    <solid android:color="#000000" /> <!-- Black color -->
+</shape>

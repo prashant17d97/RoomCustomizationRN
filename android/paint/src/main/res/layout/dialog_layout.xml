@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:orientation="vertical">
+
+
+    <TextView
+        android:id="@+id/dialog_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="26dp"
+        android:gravity="center"
+        android:textColor="@color/dialog_title"
+        android:textSize="22sp"
+        android:visibility="visible"
+        tools:text="Title" />
+
+    <TextView
+        android:id="@+id/dialog_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_margin="20.0dip"
+        android:gravity="center"
+        android:lineSpacingExtra="2.0dip"
+        android:textColor="@color/grey"
+        android:textSize="16sp"
+        tools:text="Description" />
+
+    <LinearLayout
+        android:id="@+id/dialog_positive_btn_layout"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <View
+            android:layout_width="fill_parent"
+            android:layout_height="1.0dp"
+            android:layout_marginLeft="20.0dip"
+            android:layout_marginRight="20.0dip"
+            android:background="@color/grey" />
+
+        <TextView
+            android:id="@+id/dialog_positive_btn"
+            android:layout_width="fill_parent"
+            android:layout_height="48.0dip"
+            android:gravity="center"
+            android:text="@string/yes"
+            android:textColor="@color/grey"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/dialog_negative_btn_layout"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <View
+            android:layout_width="fill_parent"
+            android:layout_height="1.0dp"
+            android:layout_marginLeft="20.0dip"
+            android:layout_marginRight="20.0dip"
+            android:background="@color/grey" />
+
+        <TextView
+            android:id="@+id/dialog_negative_btn"
+            android:layout_width="fill_parent"
+            android:layout_height="48.0dip"
+            android:gravity="center"
+            android:text="@string/no"
+            android:textColor="@color/grey"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/dialog_neutral_btn_layout"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <View
+            android:layout_width="fill_parent"
+            android:layout_height="1.0px"
+            android:layout_marginLeft="20.0dip"
+            android:layout_marginRight="20.0dip"
+            android:background="@color/grey" />
+
+        <TextView
+            android:id="@+id/dialog_neutral_btn"
+            android:layout_width="fill_parent"
+            android:layout_height="48.0dip"
+            android:gravity="center"
+            android:textColor="@color/grey"
+            android:textSize="18sp"
+            tools:text="cancel" />
+    </LinearLayout>
+</LinearLayout>

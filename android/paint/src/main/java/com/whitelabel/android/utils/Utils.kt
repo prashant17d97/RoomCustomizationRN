@@ -232,7 +232,7 @@ object Utils {
 
             val uri = FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                "${context.packageName}.provider",
                 file
             )
 

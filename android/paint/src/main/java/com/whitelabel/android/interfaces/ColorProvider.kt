@@ -10,7 +10,7 @@ import com.whitelabel.android.data.model.ColorProperty
 interface ColorProvider {
     /**
      * Returns the current color to be used for painting.
-     * @return The current ImageMaskColor to be used.
+     * @return The current ColorProperty to be used.
      */
     fun getCurrentColor(): ColorProperty
 
@@ -18,7 +18,7 @@ interface ColorProvider {
      * Updates the current color to be used for painting.
      * This method can be called by the paint module to notify
      * the provider that the color has been updated.
-     * @param color The new ImageMaskColor to be used.
+     * @param color The new ColorProperty to be used.
      */
     fun updateColor(color: ColorProperty)
 }

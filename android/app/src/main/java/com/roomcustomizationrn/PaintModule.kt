@@ -11,12 +11,13 @@ import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 import com.whitelabel.android.interfaces.ColorProvider
 import com.whitelabel.android.interfaces.ImageProvider
 import com.whitelabel.android.interfaces.PaintInterfaceRegistry
 import com.whitelabel.android.ui.paint.fragment.BottomSheetClickEvent
 import com.whitelabel.android.utils.ActivityLoader.showPaintFragment
+import com.whitelabel.android.utils.Utils.convertJsonToColorList
 import java.io.ByteArrayOutputStream
 
 /**
@@ -41,21 +42,39 @@ class PaintModule(private val reactContext: ReactApplicationContext) : ReactCont
     fun showPaintFragment(
         color: String,
         imageUri: String,
-        fandeckId: Int = -1,
-        fandeckName: String = "",
+        id: Int = -1,
+        colorCatalogue: String = "",
         colorName: String = "Default Color",
         colorOptionsListGson: String = "",
     ) {
             val activity = reactContext.currentActivity as? MainActivity ?: return
             val fragmentContainerId = activity.fragmentContainerId
-            activity.showPaintFragment(
-                color = color, // Default color
-                imageUri = Uri.parse(imageUri), // No image URI for now
-                fandeckId = fandeckId, // Default fandeck ID
-                fandeckName = fandeckName, // Default fandeck name
+
+            // Create a ColorProperty object with the provided values
+            val colorProperty = ColorProperty(
                 colorName = colorName,
-                fragmentContainerId = fragmentContainerId,
-                colorOptionsListGson = colorOptionsListGson
+                colorCode = color,
+                id = id,
+                colorCatalogue = colorCatalogue
+            )
+
+            // Parse the colorOptionsListGson to a list of ColorProperty if provided
+            val colorOptionsList = if (colorOptionsListGson.isNotEmpty()) {
+                try {
+                    colorOptionsListGson.convertJsonToColorList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            } else {
+                emptyList()
+            }
+
+            // Call the showPaintFragment extension function from ActivityLoader
+            activity.showPaintFragment(
+                colorProperty = colorProperty,
+                imageUri = Uri.parse(imageUri),
+                colorOptionsListGson = colorOptionsList,
+                fragmentContainerId = fragmentContainerId
             )
         }
 
@@ -132,8 +151,8 @@ class PaintModule(private val reactContext: ReactApplicationContext) : ReactCont
             putString("colorName", currentColor.colorName)
             putString("colorCode", currentColor.colorCode)
             putInt("colorValue", currentColor.colorValue)
-            putInt("fandeckId", currentColor.fandeckId)
-            putString("fandeckName", currentColor.fandeckName)
+            putInt("id", currentColor.id)
+            putString("colorCatalogue", currentColor.colorCatalogue)
         }
     }
 
@@ -150,18 +169,26 @@ class PaintModule(private val reactContext: ReactApplicationContext) : ReactCont
         val colorName = colorMap.getString("colorName") ?: ""
         val colorCode = colorMap.getString("colorCode") ?: ""
         val colorValue = colorMap.getInt("colorValue")
-        val fandeckId = colorMap.getInt("fandeckId")
-        val fandeckName = colorMap.getString("fandeckName") ?: ""
+        val id = colorMap.getInt("id")
+        val colorCatalogue = colorMap.getString("colorCatalogue") ?: ""
 
-        val imageMaskColor = ImageMaskColor(
+        // Extract RGB values from colorValue
+        val r = (colorValue shr 16) and 0xFF
+        val g = (colorValue shr 8) and 0xFF
+        val b = colorValue and 0xFF
+
+        val colorProperty = ColorProperty(
             colorName = colorName,
             colorCode = colorCode,
-            colorValue = colorValue,
-            fandeckId = fandeckId,
-            fandeckName = fandeckName
+            id = id,
+            roomTypeId = -1,
+            colorCatalogue = colorCatalogue,
+            r = r,
+            g = g,
+            b = b
         )
 
-        colorProvider.updateColor(imageMaskColor)
+        colorProvider.updateColor(colorProperty)
     }
 
     /**

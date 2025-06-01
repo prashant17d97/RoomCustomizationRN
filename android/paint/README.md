@@ -43,10 +43,9 @@ class MainActivity : AppCompatActivity(), PaintButtonClickListener {
             is PaintClickEvent.ColorPalette -> {
                 // Handle color palette click
                 val colorProvider = PaintInterfaceRegistry.getColorProvider()
-                colorProvider?.updateColor(ImageMaskColor(
+                colorProvider?.updateColor(ColorProperty(
                     colorName = "New Red",
-                    colorCode = "#FF0000",
-                    colorValue = Color.RED
+                    colorCode = "#FF0000"
                 ))
             }
             is PaintClickEvent.ShareClick -> {
@@ -151,10 +150,9 @@ class MainActivity : AppCompatActivity(), PaintButtonClickListener {
         when (event) {
             is PaintClickEvent.ColorPalette -> {
                 // Handle color palette click
-                colorProvider?.updateColor(ImageMaskColor(
+                colorProvider?.updateColor(ColorProperty(
                     colorName = "New Red",
-                    colorCode = "#FF0000",
-                    colorValue = Color.RED
+                    colorCode = "#FF0000"
                 ))
                 Toast.makeText(this, "Color palette clicked", Toast.LENGTH_SHORT).show()
             }

@@ -22,7 +22,7 @@ import {
 import '../types/PaintModule'; // Import the PaintModule type definitions
 import {
   PaintEvent,
-  ImageMaskColor,
+  ColorProperty,
 } from '../types/PaintModule';
 
 const {width} = Dimensions.get('window');
@@ -55,7 +55,7 @@ const MainScreen = () => {
   const [hasCameraPermission, setHasCameraPermission] = useState(false);
   const [sharedImage] = useState<string | null>(null);
   const [currentNativeColor, setCurrentNativeColor] =
-    useState<ImageMaskColor | null>(null);
+    useState<ColorProperty | null>(null);
 
   // Function to get the current color from the native module
   const getCurrentNativeColor = () => {
@@ -90,13 +90,20 @@ const MainScreen = () => {
   const loadImageToNative = useCallback(
     (uri: string) => {
       try {
+        // Create parameters with descriptive names matching the updated interface
+        const color = `${activeColor}`;
+        const id = -1;
+        const colorCatalogue = '';
+        const colorName = `${activeColor}`;
+        const colorOptionsListGson = '';
+
         PaintModule.showPaintFragment(
-          `${activeColor}`,
+          color,
           uri,
-          -1,
-          '',
-          `${activeColor}`,
-          ''
+          id,
+          colorCatalogue,
+          colorName,
+          colorOptionsListGson
         );
         console.log('Loaded image to native module:', uri);
       } catch (error) {
@@ -246,15 +253,15 @@ const MainScreen = () => {
         const nativeColor = currentNativeColor || getCurrentNativeColor();
 
         // Use the native color's properties if available, otherwise use defaults
-        const fandeckId = nativeColor?.fandeckId || -1;
-        const fandeckName = nativeColor?.fandeckName || '';
+        const id = nativeColor?.id || -1;
+        const colorCatalogue = nativeColor?.colorCatalogue || '';
         const colorName = nativeColor?.colorName || 'Selected Color';
 
         PaintModule.showPaintFragment(
           activeColor,
           selectedImage.uri,
-          fandeckId,
-          fandeckName,
+          id,
+          colorCatalogue,
           colorName,
           ''
         );
@@ -414,9 +421,9 @@ const MainScreen = () => {
                 {currentNativeColor.colorCode ||
                   `#${currentNativeColor.colorValue.toString(16)}`}
               </Text>
-              {currentNativeColor.fandeckName && (
+              {currentNativeColor.colorCatalogue && (
                 <Text style={styles.nativeColorText}>
-                  Fandeck: {currentNativeColor.fandeckName}
+                  Fandeck: {currentNativeColor.colorCatalogue}
                 </Text>
               )}
             </View>

@@ -5,12 +5,16 @@
 /**
  * Interface representing a color in the paint module
  */
-export interface ImageMaskColor {
+export interface ColorProperty {
   colorName: string;
   colorCode: string;
   colorValue: number;
-  fandeckId: number;
-  fandeckName: string;
+  id: number;
+  roomTypeId?: number;
+  colorCatalogue?: string;
+  r?: number;
+  g?: number;
+  b?: number;
 }
 
 /**
@@ -58,18 +62,18 @@ interface PaintModuleInterface {
    *
    * @param color The hex string representing the color to use (e.g., "#FFFFFF").
    * @param imageUri The URI of the image to be used in the activity.
-   * @param fandeckId Optional ID representing the fandeck. Defaults to -1 if not provided.
-   * @param fandeckName Optional name of the fandeck. Defaults to an empty string if not provided.
+   * @param id Optional ID representing the color. Defaults to -1 if not provided.
+   * @param colorCatalogue Optional name of the color catalogue. Defaults to an empty string if not provided.
    * @param colorName Optional name of the color. Defaults to "Default Color" if not provided.
-   * @param colorOptionsListGson
+   * @param colorOptionsListGson Optional JSON string representing a list of color options.
    */
   showPaintFragment(
     color: string,
     imageUri: string,
-    fandeckId?: number,
-    fandeckName?: string,
-    colorName?: string ,
-    colorOptionsListGson?: string ,
+    id?: number,
+    colorCatalogue?: string,
+    colorName?: string,
+    colorOptionsListGson?: string,
   ):void;
 
   /**
@@ -77,14 +81,14 @@ interface PaintModuleInterface {
    *
    * @return An object containing the color information.
    */
-  getCurrentColor(): ImageMaskColor;
+  getCurrentColor(): ColorProperty;
 
   /**
    * Updates the current color in the ColorProvider.
    *
    * @param color An object containing the color information.
    */
-  updateColor(color: ImageMaskColor): void;
+  updateColor(color: ColorProperty): void;
 
   /**
    * Loads an image from the provided URI using the ImageProvider.

@@ -4,7 +4,7 @@ A React Native application that allows users to customize room images by applyin
 
 ## Features
 
-- Image Selection: Choose images from gallery or capture using camera
+- Image Selection: Choose images from a gallery or capture using a camera
 - Color Customization: Apply colors to different areas of the room
 - Paint Tools: Includes paint roller and eraser functionality
 - Color Palette: 16 pre-defined colors to choose from
@@ -20,11 +20,11 @@ The project consists of two main parts:
 
 ### React Native Components
 
-- `MainScreen.tsx`: The main interface component that handles:
+- `MainScreen.tsx`: The main interface part that handles:
   - Image selection
   - Color palette management
   - Camera permissions
-  - Integration with native paint module
+  - Integration with a native paint module
 
 ### Paint Module Integration
 
@@ -63,7 +63,7 @@ Communication between React Native and the Paint Module is handled through:
 ## Usage
 
 1. Launch the application
-2. Select an image from gallery or capture using camera
+2. Select an image from a gallery or capture it using a camera
 3. Choose a color from the color palette
 4. Use the paint tools to customize the room
 5. Save or share your customized design
@@ -91,12 +91,18 @@ const { PaintModule } = NativeModules;
 
 ### Color Management
 
-Colors are managed using the `ImageMaskColor` model:
+Colors are managed using the `ColorProperty` model:
 ```typescript
-interface ImageMaskColor {
+interface ColorProperty {
   colorName: string;
   colorCode: string;  // Hex color value
   colorValue: number; // Native color value
+  id: number;
+  roomTypeId?: number;
+  colorCatalogue?: string;
+  r?: number;
+  g?: number;
+  b?: number;
 }
 ```
 

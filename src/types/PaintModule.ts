@@ -23,82 +23,54 @@ export interface PaintButtonClickEvent {
 /**
  * Event emitted when the color palette button is clicked
  */
-export interface ColorPaletteEvent extends PaintButtonClickEvent {
-  type: 'colorPalette';
+export interface SaveColorClick extends PaintButtonClickEvent {
+  type: 'saveColorClick';
+  color: string;
 }
 
 /**
  * Event emitted when the undo button is clicked
  */
-export interface UndoClickEvent extends PaintButtonClickEvent {
-  type: 'undoClick';
+export interface SendToColorConsultationClick extends PaintButtonClickEvent {
+  type: 'sendToColorConsultationClick';
+  image: string; // Base64 encoded image
 }
 
 /**
  * Event emitted when the eraser button is clicked
  */
-export interface EraserClickEvent extends PaintButtonClickEvent {
-  type: 'eraserClick';
-}
-
-/**
- * Event emitted when the share button is clicked
- */
-export interface ShareClickEvent extends PaintButtonClickEvent {
-  type: 'shareClick';
+export interface SaveToProjectClick extends PaintButtonClickEvent {
+  type: 'saveToProjectClick';
   image: string; // Base64 encoded image
-}
-
-/**
- * Event emitted when the paint roll button is clicked
- */
-export interface PaintRollEvent extends PaintButtonClickEvent {
-  type: 'paintRoll';
-}
-
-/**
- * Event emitted when an image is requested
- */
-export interface ImageRequestEvent extends PaintButtonClickEvent {
-  type: 'imageRequest';
-}
-
-/**
- * Event emitted when a new image is requested
- */
-export interface NewImageRequestEvent extends PaintButtonClickEvent {
-  type: 'newImageRequest';
 }
 
 /**
  * Union type of all possible paint button click events
  */
 export type PaintEvent =
-  | ColorPaletteEvent
-  | UndoClickEvent
-  | EraserClickEvent
-  | ShareClickEvent
-  | PaintRollEvent
-  | ImageRequestEvent
-  | NewImageRequestEvent;
+  | SaveToProjectClick
+  | SendToColorConsultationClick
+  | SaveColorClick
 
 interface PaintModuleInterface {
   /**
-   * Launches the PaintActivity with the specified color and image URI.
+   * Launches the PaintFragment with the specified color and image URI.
    *
    * @param color The hex string representing the color to use (e.g., "#FFFFFF").
    * @param imageUri The URI of the image to be used in the activity.
    * @param fandeckId Optional ID representing the fandeck. Defaults to -1 if not provided.
    * @param fandeckName Optional name of the fandeck. Defaults to an empty string if not provided.
    * @param colorName Optional name of the color. Defaults to "Default Color" if not provided.
+   * @param colorOptionsListGson
    */
-  startPaintActivity(
+  showPaintFragment(
     color: string,
     imageUri: string,
     fandeckId?: number,
     fandeckName?: string,
-    colorName?: string
-  ): void;
+    colorName?: string ,
+    colorOptionsListGson?: string ,
+  ):void;
 
   /**
    * Gets the current color from the ColorProvider.

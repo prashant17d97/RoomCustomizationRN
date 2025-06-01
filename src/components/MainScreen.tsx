@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,22 @@ import {
   Platform,
   PermissionsAndroid,
   Alert,
-  DeviceEventEmitter, NativeModules,
+  DeviceEventEmitter,
+  NativeModules,
 } from 'react-native';
-import { launchCamera, launchImageLibrary, MediaType } from 'react-native-image-picker';
+import {
+  launchCamera,
+  launchImageLibrary,
+  MediaType,
+} from 'react-native-image-picker';
 import '../types/PaintModule'; // Import the PaintModule type definitions
-import { PaintEvent, ShareClickEvent, ImageMaskColor } from '../types/PaintModule';
+import {
+  PaintEvent,
+  ImageMaskColor,
+} from '../types/PaintModule';
 
-const { width } = Dimensions.get('window');
-const { PaintModule } = NativeModules;
+const {width} = Dimensions.get('window');
+const {PaintModule} = NativeModules;
 
 // Define a set of 16 colors for the color grid
 const COLORS = [
@@ -41,11 +49,13 @@ const COLORS = [
 ];
 
 const MainScreen = () => {
-  const [selectedImage, setSelectedImage] = useState<ImageSourcePropType | null>(null);
+  const [selectedImage, setSelectedImage] =
+    useState<ImageSourcePropType | null>(null);
   const [activeColor, setActiveColor] = useState(COLORS[4]);
   const [hasCameraPermission, setHasCameraPermission] = useState(false);
-  const [sharedImage, setSharedImage] = useState<string | null>(null);
-  const [currentNativeColor, setCurrentNativeColor] = useState<ImageMaskColor | null>(null);
+  const [sharedImage] = useState<string | null>(null);
+  const [currentNativeColor, setCurrentNativeColor] =
+    useState<ImageMaskColor | null>(null);
 
   // Function to get the current color from the native module
   const getCurrentNativeColor = () => {
@@ -68,7 +78,7 @@ const MainScreen = () => {
       const g = parseInt(color.substring(3, 5), 16);
       const b = parseInt(color.substring(5, 7), 16);
       // eslint-disable-next-line no-bitwise
-      const colorValue = (0xFF << 24) | (r << 16) | (g << 8) | b;
+      const colorValue = (0xff << 24) | (r << 16) | (g << 8) | b;
 
       setActiveColor(color);
     } catch (error) {
@@ -77,15 +87,24 @@ const MainScreen = () => {
   };
 
   // Function to load an image from URI in the native module
-  const loadImageToNative = useCallback((uri: string) => {
-    try {
-      PaintModule.startPaintActivity(`${activeColor}`, uri, -1, '', `${activeColor}`);
-      console.log('Loaded image to native module:', uri);
-    } catch (error) {
-      console.error('Error loading image to native module:', error);
-    }
-  }, [activeColor]);
-
+  const loadImageToNative = useCallback(
+    (uri: string) => {
+      try {
+        PaintModule.showPaintFragment(
+          `${activeColor}`,
+          uri,
+          -1,
+          '',
+          `${activeColor}`,
+          ''
+        );
+        console.log('Loaded image to native module:', uri);
+      } catch (error) {
+        console.error('Error loading image to native module:', error);
+      }
+    },
+    [activeColor],
+  );
 
   // We'll check for permissions only when the camera button is pressed
   // This ensures the component is fully attached to an Activity
@@ -108,7 +127,10 @@ const MainScreen = () => {
           return true;
         } else {
           console.log('Camera permission denied');
-          Alert.alert('Permission Denied', 'Camera permission is required to use this feature');
+          Alert.alert(
+            'Permission Denied',
+            'Camera permission is required to use this feature',
+          );
           return false;
         }
       } catch (err) {
@@ -124,7 +146,8 @@ const MainScreen = () => {
 
   const handleCameraPress = useCallback(async () => {
     // Check if we already have permission, if not request it
-    const hasPermission = hasCameraPermission || await requestCameraPermission();
+    const hasPermission =
+      hasCameraPermission || (await requestCameraPermission());
 
     if (!hasPermission) {
       console.log('Camera permission not granted');
@@ -144,8 +167,15 @@ const MainScreen = () => {
         console.log('User cancelled camera');
       } else if (response.errorCode) {
         console.log('Camera Error: ', response.errorMessage);
-        Alert.alert('Camera Error', response.errorMessage || 'Unknown error occurred');
-      } else if (response.assets && response.assets.length > 0 && response.assets[0].uri) {
+        Alert.alert(
+          'Camera Error',
+          response.errorMessage || 'Unknown error occurred',
+        );
+      } else if (
+        response.assets &&
+        response.assets.length > 0 &&
+        response.assets[0].uri
+      ) {
         const source = {uri: response.assets[0].uri};
         setSelectedImage(source);
         // Load the image to the native module
@@ -159,7 +189,12 @@ const MainScreen = () => {
       console.error('Error launching camera:', error);
       Alert.alert('Error', 'Failed to launch camera. Please try again.');
     }
-  }, [hasCameraPermission, requestCameraPermission, setSelectedImage, loadImageToNative]);
+  }, [
+    hasCameraPermission,
+    requestCameraPermission,
+    setSelectedImage,
+    loadImageToNative,
+  ]);
 
   const handleGalleryPress = useCallback(async () => {
     const options = {
@@ -175,8 +210,12 @@ const MainScreen = () => {
         console.log('User cancelled image picker');
       } else if (response.errorCode) {
         console.log('ImagePicker Error: ', response.errorMessage);
-      } else if (response.assets && response.assets.length > 0 && response.assets[0].uri) {
-        const source = { uri: response.assets[0].uri };
+      } else if (
+        response.assets &&
+        response.assets.length > 0 &&
+        response.assets[0].uri
+      ) {
+        const source = {uri: response.assets[0].uri};
         setSelectedImage(source);
         // Load the image to the native module
         loadImageToNative(response.assets[0].uri);
@@ -190,8 +229,18 @@ const MainScreen = () => {
   }, [setSelectedImage, loadImageToNative]);
 
   const handleStartPaintActivity = () => {
-    if (selectedImage && typeof selectedImage !== 'number' && 'uri' in selectedImage && selectedImage.uri) {
-      console.log('Starting PaintActivity with color:', activeColor, 'and image:', selectedImage.uri);
+    if (
+      selectedImage &&
+      typeof selectedImage !== 'number' &&
+      'uri' in selectedImage &&
+      selectedImage.uri
+    ) {
+      console.log(
+        'Starting PaintActivity with color:',
+        activeColor,
+        'and image:',
+        selectedImage.uri,
+      );
       try {
         // Get the current native color if available
         const nativeColor = currentNativeColor || getCurrentNativeColor();
@@ -201,16 +250,20 @@ const MainScreen = () => {
         const fandeckName = nativeColor?.fandeckName || '';
         const colorName = nativeColor?.colorName || 'Selected Color';
 
-        PaintModule.startPaintActivity(
+        PaintModule.showPaintFragment(
           activeColor,
           selectedImage.uri,
           fandeckId,
           fandeckName,
-          colorName
+          colorName,
+          ''
         );
       } catch (error) {
         console.error('Error starting PaintActivity:', error);
-        Alert.alert('Error', 'Failed to start paint activity. Please try again.');
+        Alert.alert(
+          'Error',
+          'Failed to start paint activity. Please try again.',
+        );
       }
     } else {
       Alert.alert('Error', 'Please select an image first.');
@@ -225,7 +278,7 @@ const MainScreen = () => {
             key={index}
             style={[
               styles.colorBox,
-              { backgroundColor: color },
+              {backgroundColor: color},
               activeColor === color && styles.activeColorBox,
             ]}
             onPress={() => {
@@ -260,52 +313,20 @@ const MainScreen = () => {
       console.log('Paint button clicked:', event.type);
 
       switch (event.type) {
-        case 'colorPalette':
-          // Handle color palette button click
+        case 'saveColorClick':
           console.log('Color palette button clicked');
           Alert.alert('Color Palette', 'Color palette button was clicked');
           break;
-
-        case 'undoClick':
-          // Handle undo button click
-          console.log('Undo button clicked');
-          Alert.alert('Undo', 'Undo button was clicked');
+        case 'sendToColorConsultationClick':
+          console.log('Send to color consultation button clicked');
+          Alert.alert(
+            'Send to Color Consultation',
+            'Send to color consultation button was clicked',
+          );
           break;
-
-        case 'eraserClick':
-          // Handle eraser button click
-          console.log('Eraser button clicked');
-          Alert.alert('Eraser', 'Eraser button was clicked');
-          break;
-
-        case 'shareClick':
-          // Handle share button click
-          const shareEvent = event as ShareClickEvent;
-          console.log('Share button clicked with image');
-          setSharedImage(shareEvent.image);
-          Alert.alert('Share', 'Image has been shared from the Paint Activity');
-          break;
-
-        case 'paintRoll':
-          // Handle paint roll button click
-          console.log('Paint roll button clicked');
-          Alert.alert('Paint Roll', 'Paint roll button was clicked');
-          break;
-
-        case 'imageRequest':
-          // Handle image request
-          console.log('Image requested');
-          handleGalleryPress().then(r => {
-            console.log('Image request resolved with result:', r);
-          });
-          break;
-
-        case 'newImageRequest':
-          // Handle new image request
-          console.log('New image requested');
-          handleCameraPress().then(r => {
-            console.log('Image request resolved with result:', r);
-          });
+        case 'saveToProjectClick':
+          console.log('Save to project button clicked');
+          Alert.alert('Save to Project', 'Save to project button was clicked');
           break;
 
         default:
@@ -316,7 +337,7 @@ const MainScreen = () => {
     // Add event listener
     const subscription = DeviceEventEmitter.addListener(
       'paintButtonClicked',
-      handlePaintButtonClick
+      handlePaintButtonClick,
     );
 
     // Clean up the event listener on unmounting
@@ -330,14 +351,12 @@ const MainScreen = () => {
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.cameraButton]}
-          onPress={handleCameraPress}
-        >
+          onPress={handleCameraPress}>
           <Text style={styles.buttonText}>Camera</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, styles.galleryButton]}
-          onPress={handleGalleryPress}
-        >
+          onPress={handleGalleryPress}>
           <Text style={styles.buttonText}>Gallery</Text>
         </TouchableOpacity>
       </View>
@@ -354,18 +373,19 @@ const MainScreen = () => {
 
       {selectedImage && (
         <TouchableOpacity
-          style={[styles.paintButton, { backgroundColor: activeColor }]}
-          onPress={handleStartPaintActivity}
-        >
+          style={[styles.paintButton, {backgroundColor: activeColor}]}
+          onPress={handleStartPaintActivity}>
           <Text style={styles.buttonText}>Start Paint Activity</Text>
         </TouchableOpacity>
       )}
 
       {sharedImage && (
         <View style={styles.sharedImageContainer}>
-          <Text style={styles.sectionTitle}>Shared Image from Paint Activity:</Text>
+          <Text style={styles.sectionTitle}>
+            Shared Image from Paint Activity:
+          </Text>
           <Image
-            source={{ uri: `data:image/png;base64,${sharedImage}` }}
+            source={{uri: `data:image/png;base64,${sharedImage}`}}
             style={styles.sharedImage}
           />
         </View>
@@ -378,21 +398,32 @@ const MainScreen = () => {
             <View
               style={[
                 styles.nativeColorSwatch,
-                { backgroundColor: currentNativeColor.colorCode || `#${currentNativeColor.colorValue.toString(16)}` },
+                {
+                  backgroundColor:
+                    currentNativeColor.colorCode ||
+                    `#${currentNativeColor.colorValue.toString(16)}`,
+                },
               ]}
             />
             <View style={styles.nativeColorDetails}>
-              <Text style={styles.nativeColorText}>Name: {currentNativeColor.colorName || 'Unnamed'}</Text>
-              <Text style={styles.nativeColorText}>Code: {currentNativeColor.colorCode || `#${currentNativeColor.colorValue.toString(16)}`}</Text>
+              <Text style={styles.nativeColorText}>
+                Name: {currentNativeColor.colorName || 'Unnamed'}
+              </Text>
+              <Text style={styles.nativeColorText}>
+                Code:{' '}
+                {currentNativeColor.colorCode ||
+                  `#${currentNativeColor.colorValue.toString(16)}`}
+              </Text>
               {currentNativeColor.fandeckName && (
-                <Text style={styles.nativeColorText}>Fandeck: {currentNativeColor.fandeckName}</Text>
+                <Text style={styles.nativeColorText}>
+                  Fandeck: {currentNativeColor.fandeckName}
+                </Text>
               )}
             </View>
           </View>
           <TouchableOpacity
             style={[styles.button, styles.refreshButton]}
-            onPress={getCurrentNativeColor}
-          >
+            onPress={getCurrentNativeColor}>
             <Text style={styles.buttonText}>Refresh Native Color</Text>
           </TouchableOpacity>
         </View>
@@ -466,7 +497,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
+    shadowOffset: {width: 0, height: -2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
@@ -488,7 +519,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
@@ -512,7 +543,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,

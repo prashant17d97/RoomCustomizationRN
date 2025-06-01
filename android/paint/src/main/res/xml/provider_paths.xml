@@ -3,4 +3,5 @@
     <external-cache-path
         name="UGP"
         path="/" />
+    <cache-path name="shared_images" path="images/" />
 </paths>

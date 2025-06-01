@@ -15,6 +15,7 @@ import android.view.ScaleGestureDetector.OnScaleGestureListener
 import android.view.View
 import android.view.ViewConfiguration
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.get
 import androidx.core.view.ScaleGestureDetectorCompat
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -63,6 +64,7 @@ class ZoomableImageView : View, GestureDetector.OnGestureListener,
     /* loaded from: /storage/emulated/0/Documents/jadec/sources/com.whitelabel.upgcolor/dex-files/1.dex */
     interface Listener {
         fun zoomableImageViewDidUpdate(zoomableImageView: ZoomableImageView?)
+        fun onColorPicked(color: Int, movementX: Float, movementY: Float)
     }
 
     /* loaded from: /storage/emulated/0/Documents/jadec/sources/com.whitelabel.upgcolor/dex-files/1.dex */
@@ -71,6 +73,7 @@ class ZoomableImageView : View, GestureDetector.OnGestureListener,
 
         fun onZoomableImageViewLongPress(motionEvent: MotionEvent?)
     }
+
 
     // android.view.GestureDetector.OnGestureListener
     override fun onShowPress(motionEvent: MotionEvent) {
@@ -136,10 +139,31 @@ class ZoomableImageView : View, GestureDetector.OnGestureListener,
         scaleGestureDetector.onTouchEvent(motionEvent)
         mGestureDetector!!.onTouchEvent(motionEvent)
         val action = motionEvent.action
-        if ((action == 1 || action == 3) && !mTranslateRunnable!!.mRunning) {
+        if ((action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_DOWN) && !mTranslateRunnable!!.mRunning) {
             snap()
         }
+        pickColorFromTouch(motionEvent.x, motionEvent.y)
         return true
+    }
+
+    private fun pickColorFromTouch(touchX: Float, touchY: Float) {
+        val bmp = photo ?: return
+
+        // Get inverse of the current matrix
+        val inverseMatrix = Matrix()
+        mMatrix.invert(inverseMatrix)
+
+        // Map touch point to bitmap coordinates
+        val touchPoint = floatArrayOf(touchX, touchY)
+        inverseMatrix.mapPoints(touchPoint)
+
+        val bmpX = touchPoint[0].toInt()
+        val bmpY = touchPoint[1].toInt()
+
+        if (bmpX in 0 until bmp.width && bmpY in 0 until bmp.height) {
+            val color = bmp[bmpX, bmpY]
+            mListener?.onColorPicked(color, touchX, touchY)
+        }
     }
 
     // android.view.GestureDetector.OnDoubleTapListener
@@ -327,6 +351,7 @@ class ZoomableImageView : View, GestureDetector.OnGestureListener,
         this.mExternalClickListener = onClickListener
     }
 
+
     fun clear() {
         this.mGestureDetector = null
         this.mScaleGetureDetector = null
@@ -345,7 +370,7 @@ class ZoomableImageView : View, GestureDetector.OnGestureListener,
 
     fun bindDrawable(drawable: Drawable?) {
         val z: Boolean
-        var drawable2: Drawable? =null
+        var drawable2: Drawable? = null
         if (drawable == null || drawable === (this.drawable.also { drawable2 = it })) {
             z = false
         } else {

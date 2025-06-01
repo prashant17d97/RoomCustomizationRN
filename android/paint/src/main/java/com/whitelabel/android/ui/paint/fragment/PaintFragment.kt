@@ -2,51 +2,64 @@ package com.whitelabel.android.ui.paint.fragment
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
+import android.graphics.PorterDuff
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.widget.SeekBar
-import android.widget.SeekBar.OnSeekBarChangeListener
+import android.widget.ImageButton
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
+import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.whitelabel.android.BuildConfig
-import com.whitelabel.android.data.model.ImageMaskColor
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.StaggeredGridLayoutManager
+import com.whitelabel.android.R
+import com.whitelabel.android.data.model.ColorProperty
 import com.whitelabel.android.databinding.FragmentPaintBinding
 import com.whitelabel.android.interfaces.ColorProvider
 import com.whitelabel.android.interfaces.ImageProvider
 import com.whitelabel.android.interfaces.PaintButtonClickListener
 import com.whitelabel.android.interfaces.PaintInterfaceRegistry
+import com.whitelabel.android.ui.adapter.ColorAdapter
+import com.whitelabel.android.ui.bsd.ShareBottomSheetDialog
 import com.whitelabel.android.utils.ActivityLoader
-import com.whitelabel.android.utils.CommonUtils
-import com.whitelabel.android.utils.CommonUtils.createTakePhotoDialog
+import com.whitelabel.android.utils.ActivityLoader.COLOR_PROPERTIES_LIST
 import com.whitelabel.android.utils.CommonUtils.getCorrectlyOrientedBitmap
 import com.whitelabel.android.utils.CoroutineUtils.backgroundScope
 import com.whitelabel.android.utils.Utils
-import com.whitelabel.android.utils.Utils.createImageFile
-import com.whitelabel.android.utils.Utils.hasCameraPermission
-import com.whitelabel.android.utils.Utils.hexToColor
+import com.whitelabel.android.utils.Utils.convertJsonToColorList
+import com.whitelabel.android.utils.Utils.saveToGallery
+import com.whitelabel.android.utils.Utils.shareBitmapFromFragment
+import com.whitelabel.android.utils.Utils.toColorProperty
+import com.whitelabel.android.utils.Utils.toTextColor
 import com.whitelabel.android.view.RecolourImageView
 import com.whitelabel.android.view.RecolourImageView.Tool
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.IOException
-import java.util.Objects
 import kotlin.math.roundToInt
 
-class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
+class PaintFragment : Fragment(), RecolourImageView.Listener {
     private lateinit var mContext: Context
-    private var buttonClickListener: PaintButtonClickListener? = null
+    private val buttonClickListener: PaintButtonClickListener by lazy {
+        PaintInterfaceRegistry.getButtonClickListener()
+    }
 
     private var imageUri = Uri.EMPTY
+
+    private var pickedColorHex: String? = null
 
     companion object {
         private const val TAG = "PaintFragment"
@@ -54,15 +67,6 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
 
     private var _binding: FragmentPaintBinding? = null
     private val binding get() = _binding!!
-
-    private val cameraLauncher = registerForActivityResult(
-        ActivityResultContracts.TakePicture()
-    ) { result ->
-        if (result) {
-            processImage(imageUri)
-        }
-    }
-
 
     private val pickVisualMedia =
         registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -73,15 +77,8 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
                 Log.d(TAG, "No media selected")
             }
         }
-    private val cameraPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                requestCameraImage()
-            } else {
-                requestGalleryImage()
-            }
-        }
 
+    lateinit var backPressedCallback: OnBackPressedCallback
 
     private val imageProvider: ImageProvider = object : ImageProvider {
         override fun loadImageUri(imageUri: Uri) {
@@ -91,17 +88,38 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         override fun loadImageBitmap(imageBitmap: Bitmap) {
             processImage(imageBitmap)
         }
-
     }
+
+    private val colorProvider: ColorProvider = object : ColorProvider {
+        override fun getCurrentColor(): ColorProperty = binding.selectedPhotoImageView.getColor()
+
+        override fun updateColor(color: ColorProperty) {
+            binding.selectedPhotoImageView.setColor(color)
+            with(binding) {
+                updateButtonState()
+            }
+        }
+    }
+
+    private var tempFileToDelete: File? = null
+
+    private val shareLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        // Cleanup after user shares or cancels
+        Log.d(TAG, "shareLauncher: ${result.data}, ${result.resultCode}")
+        tempFileToDelete?.delete()
+        tempFileToDelete = null
+    }
+
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         _binding = FragmentPaintBinding.inflate(inflater, container, false)
         mContext = binding.root.context
-        PaintInterfaceRegistry.registerColorProvider(this)
+        PaintInterfaceRegistry.registerColorProvider(colorProvider)
         PaintInterfaceRegistry.registerImageProvider(imageProvider)
-        buttonClickListener = PaintInterfaceRegistry.getButtonClickListener()
         return binding.root
     }
 
@@ -109,6 +127,7 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         super.onDestroy()
         PaintInterfaceRegistry.unregisterColorProvider()
         PaintInterfaceRegistry.unregisterImageProvider()
+        backPressedCallback.remove()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -117,168 +136,168 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         with(binding) {
             updateActiveColor()
             updateButtonState()
-            colorSensitivitySeekbar.max = 1000
-            colorIntensitySeekbar.max = 1000
-            selectedPhotoImageView
-            choosePhotoBtn.setOnClickListener {
-                handleClicks(PaintClickEvent.ImageRequest)
+            onBackPressed()
+            colorPickerBtn.setOnClickListener {
+                handleClicks(PaintClickEvent.ColorPicker)
             }
-            reChoosePhotoBtn.setOnClickListener {
-                handleClicks(PaintClickEvent.NewImageRequest)
+            backButton.setOnClickListener { handleArrowAndBackPress() }
+            activatedPaintBrushBtn.setOnClickListener {
+                handleClicks(PaintClickEvent.PaintBrush)
             }
-            paintRoll.setOnClickListener {
-                handleClicks(PaintClickEvent.PaintRoll)
-            }
-            eraseButton.setOnClickListener {
-                handleClicks(PaintClickEvent.EraserClick)
-            }
-            undoButton.setOnClickListener {
-                handleClicks(PaintClickEvent.UndoClick)
-            }
-            shareButton.setOnClickListener {
-                lifecycleScope.launch {
-                    with(binding.selectedPhotoImageView) {
-                        sharingImage(
-                            this,
-                            context = mContext
-                        )
-                    }?.let { buttonClickListener?.onPaintButtonClicked(PaintClickEvent.ShareClick(it)) }
+            saveColorBtn.setOnClickListener {
+                pickedColorHex?.let { hexColorString ->
+                    buttonClickListener.onPaintButtonClicked(
+                        BottomSheetClickEvent.SaveColorClick(hexColorString)
+                    )
                 }
             }
-            colorPalette.setOnClickListener {
-                handleClicks(PaintClickEvent.ColorPalette)
+            imageGalleryBtn.setOnClickListener {
+                handleClicks(PaintClickEvent.GalleryRequest)
             }
-            colorSensitivitySeekbar.setupSeekBar()
-            colorIntensitySeekbar.setupSeekBar()
+            shareImageBtn.setOnClickListener {
+                showBottomSheet()
+            }
             selectedPhotoImageView.setListener(this@PaintFragment)
             setActiveTool()
         }
     }
 
-    private fun handleArguments() {
-        arguments?.let { bundle ->
-            updateColor(
-                ImageMaskColor(
-                    colorName = bundle.getString(ActivityLoader.COLOR_NAME) ?: "",
-                    colorCode = bundle.getString(ActivityLoader.COLOR_HEX) ?: "#FF0000",
-                    colorValue = bundle.getString(ActivityLoader.COLOR_HEX)?.hexToColor()
-                        ?: Color.BLACK,
-                    fandeckId = bundle.getInt(ActivityLoader.FANDECK_ID, -1),
-                    fandeckName = bundle.getString(ActivityLoader.FANDECK_NAME) ?: "Default Fandeck"
-                )
-            )
-            bundle.getString(ActivityLoader.IMAGE_URI)?.toUri()?.let {
-                processImage(it)
+    private fun showBottomSheet() {
+        val dialog = ShareBottomSheetDialog(
+            onSaveToGalleryClick = {
+                getImageBitmap {
+                    saveToGallery(it, mContext)
+                }
+            },
+            onSaveToProjectClick = {
+                getImageBitmap {
+                    buttonClickListener.onPaintButtonClicked(
+                        BottomSheetClickEvent.SaveToProjectClick(
+                            it
+                        )
+                    )
+                }
+            },
+            onSendToColorConsultationClick = {
+                getImageBitmap {
+                    buttonClickListener.onPaintButtonClicked(
+                        BottomSheetClickEvent.SendToColorConsultationClick(
+                            it
+                        )
+                    )
+                }
+            },
+            onSharePhotoClick = {
+                getImageBitmap {
+                    shareLauncher.shareBitmapFromFragment(it, mContext) {
+                        tempFileToDelete = it
+                    }
+                }
+            }
+        )
+
+        dialog.show(childFragmentManager, "ShareBottomSheetDialog")
+    }
+
+
+    private fun getImageBitmap(bitmapCallback: (Bitmap) -> Unit) {
+        lifecycleScope.launch {
+            with(binding.selectedPhotoImageView) {
+                sharingImage(
+                    this
+                )?.let {
+                    bitmapCallback(it)
+                }
             }
         }
     }
 
-    private fun SeekBar.setupSeekBar() {
-        setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (binding.selectedPhotoImageView.coverage >= 0.0f) {
-                    binding.selectedPhotoImageView.coverage = progress / 1000.0f
-                    Log.d(
-                        TAG,
-                        "onProgressChanged: ${binding.selectedPhotoImageView.coverage}, ${binding.selectedPhotoImageView.fillThreshold}"
+    private fun handleArguments() {
+        arguments?.let { bundle ->
+            colorProvider.updateColor(
+                bundle.getString(ActivityLoader.COLOR_JSON).toColorProperty()
+            )
+            bundle.getString(ActivityLoader.IMAGE_URI)?.toUri()?.let {
+                imageUri = it
+                lifecycleScope.launch(Dispatchers.IO) {
+                    processImage(imageUri)
+                }
+
+            }
+            initializeColorList(bundle.getString(COLOR_PROPERTIES_LIST).convertJsonToColorList())
+            updateCurrentColorText(
+                colorName = colorProvider.getCurrentColor().colorName,
+                colorValue = colorProvider.getCurrentColor().colorValue
+            )
+        }
+    }
+
+    private fun initializeColorList(colorOptionsList: List<ColorProperty>) {
+        binding.colorOptionList.visibility =
+            View.VISIBLE.takeIf { colorOptionsList.isNotEmpty() } ?: View.GONE
+        binding.colorOptionList.layoutManager =
+            StaggeredGridLayoutManager(
+                (colorOptionsList.size / 5.0).roundToInt(),
+                RecyclerView.HORIZONTAL
+            )
+        binding.colorOptionList.adapter = ColorAdapter(
+            colors = colorOptionsList,
+            onColorSelected = {
+                updateCurrentColorText(it.colorName, it.colorValue)
+                colorProvider.updateColor(it)
+                binding.selectedPhotoImageView.apply {
+                    currentTool = Tool.FILL
+                    this.onTap(
+                        MotionEvent.obtain(
+                            System.currentTimeMillis(),
+                            System.currentTimeMillis(),
+                            MotionEvent.ACTION_DOWN,
+                            0.0f,
+                            0.0f,
+                            0
+                        )
                     )
                 }
             }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {
-
-//                seekBar?.progress = seekBar?.progress ?: 0
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                // Optional: Same as above
-//                seekBar?.progress = seekBar?.progress ?: 0
-            }
-        })
+        )
     }
 
+    private fun updateCurrentColorText(colorName: String, colorValue: Int) {
+        binding.selectedColorDetail.apply {
+            text = colorName
+            setTextColor(colorValue.toTextColor())
+        }
+
+        binding.saveColorBtn.setTextColor(colorValue.toTextColor())
+        binding.currentColorDetail.setBackgroundColor(colorValue)
+    }
 
     private fun handleClicks(paintClickEvent: PaintClickEvent) {
         lifecycleScope.launch {
             when (paintClickEvent) {
-                is PaintClickEvent.EraserClick -> {
-                    setActiveTool(Tool.ERASER)
-                }
-
-                is PaintClickEvent.PaintRoll -> {
-                    setActiveTool()
-                }
-
-                is PaintClickEvent.ImageRequest,
-                is PaintClickEvent.NewImageRequest -> showPhotoPicker()
-
-                is PaintClickEvent.UndoClick -> binding.selectedPhotoImageView.undo()
-
+                is PaintClickEvent.PaintBrush -> setActiveTool()
+                is PaintClickEvent.GalleryRequest -> requestGalleryImage()
+                is PaintClickEvent.ColorPicker -> showColorPicker()
                 else -> Unit // Do nothing
             }
-            buttonClickListener?.onPaintButtonClicked(paintClickEvent)
-            binding.updateButtonState()
+            binding.updateButtonState(paintClickEvent = paintClickEvent)
         }
     }
 
     private fun FragmentPaintBinding.updateActiveColor() {
-        val activeColor = getCurrentColor()
+        val activeColor = colorProvider.getCurrentColor()
         selectedPhotoImageView.setColor(activeColor)
-        val isColorLight: Boolean = CommonUtils.isColorLight(activeColor)
-        buttonsLayout.setBackgroundColor(CommonUtils.getARGB(activeColor))
-        with(binding) {
-            CommonUtils.setImageViewColor(shareButton, isColorLight)
-            CommonUtils.setImageViewColor(colorPalette, isColorLight)
-            CommonUtils.setImageViewColor(paintRoll, isColorLight)
-            CommonUtils.setImageViewColor(eraseButton, isColorLight)
-            CommonUtils.setImageViewColor(undoButton, isColorLight)
-            updateButtonState()
-        }
-    }
-
-    private fun requestCameraImage() {
-        if (::mContext.isInitialized && mContext.hasCameraPermission()) {
-            imageUri = generateImageFile()
-            if (imageUri != null) {
-                cameraLauncher.launch(imageUri)
-            }
-        } else {
-            cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-        }
-    }
-
-    private fun showPhotoPicker() {
-        val dialog = createTakePhotoDialog(
-            context = mContext,
-            onTakePhotoClickListener = { dialog, i ->
-                requestCameraImage()
-                dialog.dismiss()
-            }, onChooseFromAlbumClickListener = { dialog, i ->
-                requestGalleryImage()
-                dialog.dismiss()
-            })
-        val width = ViewGroup.LayoutParams.MATCH_PARENT
-        val height = ViewGroup.LayoutParams.MATCH_PARENT
-        dialog.window!!.setLayout(width, height)
-        dialog.show()
 
     }
 
     private fun requestGalleryImage() {
+        setActiveTool()
         pickVisualMedia.launch(
             PickVisualMediaRequest(
                 ActivityResultContracts.PickVisualMedia.SingleMimeType(
                     "image/*"
                 )
             )
-        )
-    }
-
-    private fun generateImageFile(): Uri? {
-        return FileProvider.getUriForFile(
-            Objects.requireNonNull(mContext),
-            BuildConfig.LIBRARY_PACKAGE_NAME + ".provider",
-            mContext.createImageFile()
         )
     }
 
@@ -328,6 +347,78 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onColorPicked(color: Int, movementX: Float, movementY: Float) {
+        val hex = String.format("#%06X", 0xFFFFFF and color)
+        Log.d(TAG, "onColorPicked: RGB: $color, HEX: $hex")
+        if (binding.selectedPhotoImageView.currentTool == Tool.COLOR_PICKER) {
+            pickedColorHex = hex
+            updateCurrentColorText(
+                colorName = hex,
+                colorValue = color
+            )
+            binding.saveColorBtn.setTextColor(color.toTextColor())
+            binding.currentColorDetail.setBackgroundColor(color)
+            binding.eyeDropTint.setColorFilter(color)
+            binding.selectedPhotoImageView.setColor(
+                ColorProperty(
+                    colorName = hex,
+                    colorCode = hex,
+                )
+            )
+
+            with(binding.eyeDrop) {
+                x = movementX
+                y = movementY
+            }
+
+        }
+    }
+
+
+    private fun onBackPressed() {
+        backPressedCallback = object : OnBackPressedCallback(
+            true // default to enabled
+        ) {
+            override fun handleOnBackPressed() {
+                handleArrowAndBackPress()
+            }
+        }
+        requireActivity().onBackPressedDispatcher.addCallback(
+            this,
+            backPressedCallback
+        )
+
+    }
+
+    fun handleArrowAndBackPress() {
+        if (binding.selectedPhotoImageView.currentTool == Tool.COLOR_PICKER) {
+            showAllUI()
+        } else {
+            parentFragmentManager.popBackStack()
+        }
+    }
+
+    private fun showAllUI() {
+        setActiveTool()
+        with(binding) {
+            colorOptionList.visibility = View.VISIBLE
+            buttonsLayout.visibility = View.VISIBLE
+            saveColorBtn.visibility = View.GONE
+            binding.eyeDrop.visibility = View.GONE
+        }
+    }
+
+    private fun showColorPicker() {
+        binding.selectedPhotoImageView.undoAll()
+        setActiveTool(Tool.COLOR_PICKER)
+        with(binding) {
+            colorOptionList.visibility = View.GONE
+            buttonsLayout.visibility = View.GONE
+            saveColorBtn.visibility = View.VISIBLE
+            binding.eyeDrop.visibility = View.VISIBLE
+        }
+    }
 
     private fun safeUndoAll() {
         try {
@@ -348,7 +439,6 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         )
     }
 
-
     private fun finaliseSetup() {
         binding.updateActiveColor()
         setActiveTool()
@@ -359,53 +449,59 @@ class PaintFragment : Fragment(), RecolourImageView.Listener, ColorProvider {
         binding.updateButtonState()
     }
 
-    private fun FragmentPaintBinding.updateButtonState() {
+    private fun FragmentPaintBinding.updateButtonState(
+        paintClickEvent: PaintClickEvent = PaintClickEvent.PaintBrush
+    ) {
         val hasImage = selectedPhotoImageView.hasImage
-        paintRoll.isEnabled = hasImage
-        paintRoll.alpha = if (hasImage) 1.0f else 0.4f
-        eraseButton.isEnabled = hasImage
-        eraseButton.alpha = if (hasImage) 1.0f else 0.4f
-        undoButton.isEnabled = hasImage
-        undoButton.alpha = if (hasImage) 1.0f else 0.4f
-        shareButton.isEnabled = hasImage
-        shareButton.alpha = if (hasImage) 1.0f else 0.4f
-        paintMyRoomNoContent.visibility = if (hasImage) View.GONE else View.VISIBLE
-        updateSelectedButtonTint()
+        if (!hasImage || paintClickEvent is PaintClickEvent.None) return
+
+        val allButtons = listOf(
+            activatedPaintBrushBtn,
+            imageGalleryBtn,
+            colorPickerBtn,
+            shareImageBtn
+        )
+
+        val selectedButton = when (paintClickEvent) {
+            is PaintClickEvent.ShareClick -> shareImageBtn
+            PaintClickEvent.ColorPicker -> colorPickerBtn
+            PaintClickEvent.GalleryRequest -> imageGalleryBtn
+            else -> activatedPaintBrushBtn
+        }
+
+        binding.eyeDrop.visibility =
+            View.VISIBLE.takeIf { binding.selectedPhotoImageView.currentTool == Tool.COLOR_PICKER }
+                ?: View.GONE
+        allButtons.forEach { button ->
+            if (button == selectedButton) {
+                button.setSelectedColor()
+            } else {
+                button.setUnSelectedColor()
+            }
+        }
     }
 
-    private fun FragmentPaintBinding.updateSelectedButtonTint() {
-        val hasImage = selectedPhotoImageView.hasImage
-        val tool = selectedPhotoImageView.currentTool
-        val isPaintRollerSelected = hasImage && tool == Tool.FILL
-        if (isPaintRollerSelected) {
-            paintRoll.isSelected = true
-            CommonUtils.setImageViewColor(paintRoll, true)
-            CommonUtils.setImageViewColor(eraseButton, false)
-        } else {
-            eraseButton.isSelected = true
-            CommonUtils.setImageViewColor(paintRoll, false)
-            CommonUtils.setImageViewColor(eraseButton, true)
-        }
+    private fun ImageButton.setSelectedColor() {
+        setColorFilter(
+            ContextCompat.getColor(mContext, R.color.selected_button_color),
+            PorterDuff.Mode.SRC_IN
+        )
+    }
+
+    private fun ImageButton.setUnSelectedColor() {
+        setColorFilter(
+            ContextCompat.getColor(mContext, R.color.unselected_button_color),
+            PorterDuff.Mode.SRC_IN
+        )
     }
 
     override fun recolourImageViewDidUpdateFillThreshold(recolourImageView: RecolourImageView?) {
-        binding.colorSensitivitySeekbar.progress =
-            (binding.selectedPhotoImageView.fillThreshold * 1000.0f).roundToInt()
+
     }
 
     override fun recolourImageViewDidUpdateCoverage(recolourImageView: RecolourImageView?) {
-        with(binding) {
-            colorIntensitySeekbar.progress =
-                (selectedPhotoImageView.coverage * 1000.0f).roundToInt()
-        }
+
     }
 
-    override fun getCurrentColor(): ImageMaskColor = binding.selectedPhotoImageView.getColor()
-
-    override fun updateColor(color: ImageMaskColor) {
-        Log.d(TAG, "updateColor: $color")
-        binding.selectedPhotoImageView.setColor(color)
-        binding.updateActiveColor()
-    }
 
 }

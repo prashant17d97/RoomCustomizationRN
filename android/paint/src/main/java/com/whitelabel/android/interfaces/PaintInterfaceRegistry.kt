@@ -14,7 +14,8 @@ object PaintInterfaceRegistry {
      * Gets the registered PaintButtonClickListener.
      * @return The registered listener, or null if none is registered.
      */
-    fun getButtonClickListener(): PaintButtonClickListener? = buttonClickListener
+    fun getButtonClickListener(): PaintButtonClickListener =
+        buttonClickListener ?: throw IllegalStateException("No PaintButtonClickListener registered")
 
     /**
      * Gets the registered ColorProvider.

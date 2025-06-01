@@ -1,6 +1,6 @@
 package com.whitelabel.android.interfaces
 
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 
 /**
  * Interface for providing color data to the paint module.
@@ -12,7 +12,7 @@ interface ColorProvider {
      * Returns the current color to be used for painting.
      * @return The current ImageMaskColor to be used.
      */
-    fun getCurrentColor(): ImageMaskColor
+    fun getCurrentColor(): ColorProperty
 
     /**
      * Updates the current color to be used for painting.
@@ -20,5 +20,5 @@ interface ColorProvider {
      * the provider that the color has been updated.
      * @param color The new ImageMaskColor to be used.
      */
-    fun updateColor(color: ImageMaskColor)
+    fun updateColor(color: ColorProperty)
 }

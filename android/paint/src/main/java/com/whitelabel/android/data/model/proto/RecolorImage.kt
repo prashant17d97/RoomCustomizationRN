@@ -193,18 +193,23 @@ class RecolorImage @JvmOverloads constructor(
                         reader.endMessageAndGetUnknownFields(beginMessage)
                         return builder.build()
                     }
+
                     1 -> {
                         builder.version(INT32.decode(reader))
                     }
+
                     2 -> {
                         builder.imageOriginal(BYTES.decode(reader))
                     }
+
                     3 -> {
                         builder.imageRecolored(BYTES.decode(reader))
                     }
+
                     4 -> {
                         builder.usedBuilderColours.add(RecolorImageColor.ADAPTER.decode(reader))
                     }
+
                     else -> {
                         val peekFieldEncoding = reader.peekFieldEncoding()
                         builder.addUnknownField(

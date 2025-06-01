@@ -6,7 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 import com.whitelabel.android.utils.CommonUtils
 import com.whitelabel.android.utils.CoroutineUtils.backgroundScope
 import com.whitelabel.android.view.RecolourImageView
@@ -20,8 +20,8 @@ class PaintFragmentUtil {
     private val _currentTool = MutableLiveData<RecolourImageView.Tool>()
     val currentTool: LiveData<RecolourImageView.Tool> = _currentTool
 
-    private val _activeColor = MutableLiveData<ImageMaskColor>()
-    val activeColor: LiveData<ImageMaskColor> = _activeColor
+    private val _activeColor = MutableLiveData<ColorProperty>()
+    val activeColor: LiveData<ColorProperty> = _activeColor
 
     private val _fillThreshold = MutableLiveData<Float>()
     val fillThreshold: LiveData<Float> = _fillThreshold
@@ -32,7 +32,7 @@ class PaintFragmentUtil {
     // Initialize with default values
     init {
         _currentTool.value = RecolourImageView.Tool.FILL
-        _activeColor.value = ImageMaskColor()
+        _activeColor.value = ColorProperty()
         _fillThreshold.value = 0.5f
         _coverage.value = 0.5f
     }
@@ -53,8 +53,8 @@ class PaintFragmentUtil {
         _currentTool.value = tool
     }
 
-    fun setActiveColor(imageMaskColor: ImageMaskColor) {
-        _activeColor.value = imageMaskColor
+    fun setActiveColor(colorProperty: ColorProperty) {
+        _activeColor.value = colorProperty
     }
 
     fun updateFillThreshold(threshold: Float) {

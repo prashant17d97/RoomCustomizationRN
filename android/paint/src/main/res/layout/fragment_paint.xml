@@ -5,262 +5,177 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:background="@color/layout_bg"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:orientation="vertical"
     tools:context="com.whitelabel.android.ui.paint.fragment.PaintFragment">
+
+    <FrameLayout
+        android:id="@+id/topAppBar"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@android:color/white"
+        android:elevation="4dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Back Icon (left aligned) -->
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="56dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:layout_marginStart="16dp"
+            android:background="@color/transparent"
+            android:contentDescription="@string/back"
+            android:src="@drawable/arrow_back" />
+
+        <!-- Center Logo -->
+        <ImageView
+            android:id="@+id/logoImageView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:contentDescription="@string/logo"
+            android:src="@drawable/upglogo_1" />
+
+    </FrameLayout>
+
+    <com.whitelabel.android.view.RecolourImageView
+        android:id="@+id/selected_photo_image_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/white"
+        app:layout_constraintBottom_toTopOf="@id/colorOptionList"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topAppBar"
+        tools:src="@drawable/outline_image_24" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/eyeDrop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="@id/selected_photo_image_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/color_palette"
+            android:src="@drawable/ic_color_picker" />
+
+        <ImageView
+            android:id="@+id/eyeDropTint"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/color_palette"
+            android:src="@drawable/color_dropped" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/colorOptionList"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.StaggeredGridLayoutManager"
+        app:layout_constraintBottom_toTopOf="@id/currentColorDetail"
+        tools:itemCount="10"
+        tools:listitem="@layout/color_item" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/currentColorDetail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/accent"
+        app:layout_constraintBottom_toTopOf="@id/buttonsLayout">
+
+        <TextView
+            android:id="@+id/selectedColorDetail"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:text="@string/paint_roller"
+            android:textColor="@color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:id="@+id/saveColorBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:text="@string/save"
+            android:textAllCaps="false"
+            android:textColor="@color/black"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 
     <LinearLayout
         android:id="@+id/buttonsLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/grey"
-        android:gravity="center|right"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
         android:padding="16dp"
+        android:weightSum="4"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:ignore="RtlHardcoded">
+        app:layout_constraintStart_toStartOf="parent">
 
         <ImageButton
-            android:id="@+id/re_choose_photo_btn"
+            android:id="@+id/imageGalleryBtn"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:contentDescription="@string/camera"
-            android:src="@drawable/camera" />
+            android:src="@drawable/gallery" />
 
         <ImageButton
-            android:id="@+id/shareButton"
+            android:id="@+id/colorPickerBtn"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:contentDescription="@string/share"
-            android:padding="12dp"
-            android:src="@drawable/share" />
+            android:contentDescription="@string/gallery"
+            android:src="@drawable/color_picker" />
 
         <ImageButton
-            android:id="@+id/colorPalette"
+            android:id="@+id/activatedPaintBrushBtn"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@android:color/transparent"
-            android:contentDescription="@string/color_palette"
-            android:padding="12dp"
-            android:src="@drawable/pantone" />
-
-        <ImageButton
-            android:id="@+id/paintRoll"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="8dp"
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:contentDescription="@string/paint_roller"
-            android:padding="12dp"
-            android:src="@drawable/paint_roller" />
+            android:src="@drawable/paint_brush" />
 
         <ImageButton
-            android:id="@+id/eraseButton"
+            android:id="@+id/shareImageBtn"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:contentDescription="@string/erase"
-            android:padding="12dp"
-            android:src="@drawable/eraser" />
+            android:contentDescription="@string/share"
+            android:src="@drawable/share" />
 
-        <ImageButton
-            android:id="@+id/undoButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:contentDescription="@string/undo"
-            android:padding="12dp"
-            android:src="@drawable/undo" />
 
-    </LinearLayout>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/colorInfoLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingVertical="10dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/buttonsLayout">
-
-        <TextView
-            android:id="@+id/colorNameTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
-            android:textSize="16dp"
-            android:textStyle="bold"
-            android:visibility="visible"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/colorCodeTextView"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Prashant"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/colorCodeTextView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4.0dip"
-            android:textColor="@android:color/white"
-            android:textSize="16dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/colorNameTextView"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Prashant" />
-
-        <ImageButton
-            android:id="@+id/getSampleButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
-            android:contentDescription="@string/fill_color"
-            android:src="@drawable/fill_color"
-            android:visibility="visible"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/colorCodeTextView"
-            app:layout_constraintTop_toTopOf="parent" />
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_below="@id/colorInfoLayout"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/colorInfoLayout">
-
-        <com.whitelabel.android.view.RecolourImageView
-            android:id="@+id/selected_photo_image_view"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            app:layout_constraintBottom_toTopOf="@id/seekBar_layout"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:src="@drawable/outline_image_24" />
-
-        <LinearLayout
-            android:id="@+id/seekBar_layout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/grey"
-            android:orientation="vertical"
-            android:padding="10dp"
-            android:weightSum="1"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/selected_photo_image_view">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dip"
-                android:layout_weight="1.0"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center_vertical"
-                    android:contentDescription="@string/moon"
-                    android:rotation="-50"
-                    android:scaleType="center"
-                    android:src="@drawable/moon" />
-
-                <SeekBar
-                    android:id="@+id/color_intensity_seekbar"
-                    android:layout_width="0.0dip"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_weight="1.0"
-                    android:thumb="@drawable/thumb"
-                    tools:ignore="NestedWeights" />
-
-                <ImageView
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center_vertical"
-                    android:contentDescription="@string/sun"
-                    android:scaleType="center"
-                    android:src="@drawable/sun" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="fill_parent"
-                android:layout_height="0.0dip"
-                android:layout_weight="1.0"
-                android:orientation="horizontal"
-                android:visibility="gone">
-
-                <ImageView
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center_vertical"
-                    android:contentDescription="@string/low"
-                    android:scaleType="center"
-                    android:src="@drawable/slider_low" />
-
-                <SeekBar
-                    android:id="@+id/color_sensitivity_seekbar"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_weight="1.0"
-                    android:progressDrawable="@drawable/seekbar_white_progress_horizontal"
-                    android:thumb="@drawable/seekbar_thumb_white"
-                    tools:ignore="NestedWeights" />
-
-                <ImageView
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:layout_gravity="center_vertical"
-                    android:contentDescription="@string/high"
-                    android:scaleType="center"
-                    android:src="@drawable/slider_high" />
-            </LinearLayout>
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!--Camera Buttons-->
-    <LinearLayout
-        android:id="@+id/paint_my_room_no_content"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:clickable="true"
-        android:focusable="true"
-        android:gravity="center"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="visible">
-
-        <ImageView
-            android:id="@+id/choose_photo_btn"
-            android:layout_width="108dp"
-            android:layout_height="96dp"
-            android:background="@drawable/img"
-            android:contentDescription="@string/camera" />
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="10.0dip"
-            android:text="@string/tap_on_camera_to_add_photo"
-            android:textAllCaps="false"
-            android:textColor="@color/grey"
-            android:textSize="20sp" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

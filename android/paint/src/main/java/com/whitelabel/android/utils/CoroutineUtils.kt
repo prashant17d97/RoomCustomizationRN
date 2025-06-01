@@ -6,7 +6,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -15,7 +15,7 @@ import kotlin.coroutines.CoroutineContext
 
 object CoroutineUtils {
 
-    fun getAllColors(context: Context, list: MutableList<ImageMaskColor>) {
+    fun getAllColors(context: Context, list: MutableList<ColorProperty>) {
 //        getAllColors(context, list, null)
     }
 

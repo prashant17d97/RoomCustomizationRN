@@ -1,6 +1,6 @@
 package com.whitelabel.android.interfaces
 
-import com.whitelabel.android.ui.paint.fragment.PaintClickEvent
+import com.whitelabel.android.ui.paint.fragment.BottomSheetClickEvent
 
 /**
  * Interface for listening to button clicks in the paint module.
@@ -12,5 +12,5 @@ interface PaintButtonClickListener {
      * Called when a button is clicked in the paint module.
      * @param event The type of button click event.
      */
-    fun onPaintButtonClicked(event: PaintClickEvent)
+    fun onPaintButtonClicked(event: BottomSheetClickEvent)
 }

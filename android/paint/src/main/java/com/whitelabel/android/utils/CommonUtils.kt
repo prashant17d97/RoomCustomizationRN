@@ -16,7 +16,7 @@ import android.view.WindowManager
 import android.widget.ImageView
 import androidx.exifinterface.media.ExifInterface
 import com.whitelabel.android.R
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 import com.whitelabel.android.databinding.DialogLayoutBinding
 import com.whitelabel.android.databinding.DlgTakePhotoBinding
 import java.io.File
@@ -84,19 +84,19 @@ object CommonUtils {
         )
     }
 
-    fun getARGB(imageMaskColor: ImageMaskColor?): Int {
-        if (imageMaskColor == null) {
+    fun getARGB(colorProperty: ColorProperty?): Int {
+        if (colorProperty == null) {
             return 0
         }
-        return imageMaskColor.colorValue
+        return colorProperty.colorValue
     }
 
 
-    fun isColorLight(imageMaskColor: ImageMaskColor?): Boolean {
-        if (imageMaskColor == null) {
+    fun isColorLight(colorProperty: ColorProperty?): Boolean {
+        if (colorProperty == null) {
             return false
         }
-        return isColorLight(imageMaskColor.colorValue)
+        return isColorLight(colorProperty.colorValue)
     }
 
     private fun isColorLight(color: Int): Boolean {

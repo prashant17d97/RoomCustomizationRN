@@ -9,9 +9,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.AttributeSet
@@ -23,11 +23,9 @@ import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.view.isVisible
-import com.whitelabel.android.R
-import com.whitelabel.android.data.model.ImageMaskColor
+import com.whitelabel.android.data.model.ColorProperty
 import com.whitelabel.android.data.model.proto.RecolorImage
 import com.whitelabel.android.data.model.proto.RecolorImageColor
 import com.whitelabel.android.data.model.proto.RecolorImageMeta
@@ -70,7 +68,7 @@ import kotlin.math.pow
  * Key features:
  * - Image display and manipulation using [ZoomableImageView].
  * - Multiple recoloring tools: [Tool.FILL], [Tool.ERASER], [Tool.BRUSH], [Tool.POLYGON].
- * - Color selection via [ImageMaskColor].
+ * - Color selection via [ColorProperty].
  * - Mask generation and application using OpenCV.
  * - Undo history for recoloring operations.
  * - Saving and loading recolored images with metadata.
@@ -98,6 +96,8 @@ import kotlin.math.pow
  * @property currentTool The currently active recoloring tool.
  * @property fillThreshold The threshold for the fill tool, determining color sensitivity.
  * @property coverage The coverage or strength of the current tool (e.g., brush opacity).
+ *
+ * @author Prashant Singh
  */
 class RecolourImageView @JvmOverloads constructor(
     context: Context,
@@ -110,12 +110,13 @@ class RecolourImageView @JvmOverloads constructor(
 
     private var activeMaskUpdate: Promise<*, *, *>? = null
     private var activeTool: Tool? = null
-    private var customColor: ImageMaskColor? =
-        null // Renamed mColor to avoid conflict with View.getColor()
+    private var customColor: ColorProperty? = ColorProperty()
+
+    // Renamed mColor to avoid conflict with View.getColor()
     private val compositedHistory: MutableList<Bitmap> = mutableListOf()
     private lateinit var compositedView: ImageView
     private var currentCoverage = 0f // Renamed mCoverage
-    private var currentColor: ImageMaskColor? = null
+    private var currentColor: ColorProperty = ColorProperty()
     private lateinit var freeMaskView: FreeMaskView
     private var hasRepaint = false
     private var imageBitmap: Bitmap? = null // Renamed mImage
@@ -129,22 +130,23 @@ class RecolourImageView @JvmOverloads constructor(
     private var paintMask: PaintMask? = null
     private lateinit var polygonView: PolygonView
     var isSaved: Boolean = true
-    private var topColor: ImageMaskColor? = null
+    private var topColor: ColorProperty? = null
     private var topHasMask = false
     private var topTool: Tool? = null
     private lateinit var topView: ImageView
     private lateinit var touchFeedbackView: TouchFeedbackView
-    private var usedColorsHistory: MutableList<Set<ImageMaskColor>?> = mutableListOf()
+    private var usedColorsHistory: MutableList<Set<ColorProperty>?> = mutableListOf()
 
     private val viewScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     interface Listener {
         fun recolourImageViewDidUpdateCoverage(recolourImageView: RecolourImageView?)
         fun recolourImageViewDidUpdateFillThreshold(recolourImageView: RecolourImageView?)
+        fun onColorPicked(color: Int, movementX: Float, movementY: Float)
     }
 
     enum class Tool {
-        FILL, ERASER, BRUSH, POLYGON
+        FILL, ERASER, BRUSH, POLYGON, COLOR_PICKER
     }
 
     init {
@@ -162,7 +164,7 @@ class RecolourImageView @JvmOverloads constructor(
             enableImageTransforms(true)
             setScrollMinNumberOfPointers(2)
             setListener(this@RecolourImageView)
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(LAYER_TYPE_HARDWARE, null)
             setEdgeInset(
                 TypedValue.applyDimension(
                     TypedValue.COMPLEX_UNIT_DIP, // Assuming R.dimen.unit was meant for DIP
@@ -188,13 +190,13 @@ class RecolourImageView @JvmOverloads constructor(
 
         compositedView = ImageView(ctx).apply {
             scaleType = ImageView.ScaleType.MATRIX
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(LAYER_TYPE_HARDWARE, null)
         }
         addView(compositedView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         topView = ImageView(ctx).apply {
             scaleType = ImageView.ScaleType.MATRIX
-            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            setLayerType(LAYER_TYPE_HARDWARE, null)
         }
         addView(topView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
@@ -206,15 +208,19 @@ class RecolourImageView @JvmOverloads constructor(
 
         freeMaskView = FreeMaskView(ctx).apply {
             alpha = 0.3f
-            visibility = View.GONE
+            visibility = GONE
             setListener(this@RecolourImageView)
         }
         addView(freeMaskView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         polygonView = PolygonView(ctx).apply {
-            visibility = View.GONE
+            visibility = GONE
         }
         addView(polygonView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+    }
+
+    override fun onColorPicked(color: Int, movementX: Float, movementY: Float) {
+        listener?.onColorPicked(color, movementX, movementY)
     }
 
     fun onTap(motionEvent: MotionEvent) {
@@ -280,7 +286,7 @@ class RecolourImageView @JvmOverloads constructor(
                                     (contourRect.y + contourRect.height).toFloat()
                                 )
                             } catch (e: Exception) {
-
+                                Log.e(TAG, "onTap: ${e.cause} ${e.localizedMessage}")
                                 null
                             }
                         }
@@ -291,7 +297,7 @@ class RecolourImageView @JvmOverloads constructor(
                         }
                         polygonView.setRect(it)
                     }
-                    polygonView.visibility = View.VISIBLE
+                    polygonView.visibility = VISIBLE
                 }
             }
 
@@ -310,7 +316,7 @@ class RecolourImageView @JvmOverloads constructor(
         }
         maybeCommitHistory()
         paintAreas.push_back(PaintArea(mappedPoints.toDouble(), mappedPoints2.toDouble(), f3))
-        this.currentColor = this.customColor
+        this.currentColor = this.customColor ?: ColorProperty()
         listener?.let {
             it.recolourImageViewDidUpdateFillThreshold(this)
             it.recolourImageViewDidUpdateCoverage(this)
@@ -325,8 +331,8 @@ class RecolourImageView @JvmOverloads constructor(
         if (force || shouldCommit) {
             val compImage = compositedImage()
             compositedHistory.add(compImage)
-            val newUsedColorsSet = HashSet<ImageMaskColor>()
-            currentColor?.let { newUsedColorsSet.add(it) }
+            val newUsedColorsSet = HashSet<ColorProperty>()
+            currentColor.let { newUsedColorsSet.add(it) }
             if (usedColorsHistory.isNotEmpty()) {
                 usedColorsHistory.lastOrNull()?.let { newUsedColorsSet.addAll(it) }
             }
@@ -400,82 +406,137 @@ class RecolourImageView @JvmOverloads constructor(
         return resultBitmap
     }
 
+    /*
+        fun thumbnail(width: Int, height: Int): Bitmap {
+            val currentImage = imageBitmap
+
+            // Check if target thumbnail dimensions are valid
+            if (width <= 0 || height <= 0) {
+                Log.w(
+                    TAG,
+                    "Thumbnail dimensions are invalid: targetWidth=$width, targetHeight=$height. Returning 1x1 placeholder."
+                )
+                return createBitmap(
+                    1,
+                    1,
+                    Bitmap.Config.ARGB_8888
+                ).apply { eraseColor(Color.TRANSPARENT) }
+            }
+
+            // Check if there's a valid source image
+            if (currentImage == null || currentImage.width <= 0 || currentImage.height <= 0 || currentImage.isRecycled) {
+                Log.w(
+                    TAG,
+                    "Source image is invalid for thumbnail. Returning empty thumbnail of target size."
+                )
+                return createBitmap(
+                    width,
+                    height,
+                    Bitmap.Config.ARGB_8888
+                ).apply { eraseColor(Color.LTGRAY) }
+            }
+
+            val scaleFactor = max(
+                width.toDouble() / currentImage.width,
+                height.toDouble() / currentImage.height
+            ).toFloat()
+
+            // Ensure scaled dimensions are at least 1 to avoid issues with Rect or drawing 0-size bitmaps
+            val scaledWidth = (currentImage.width * scaleFactor).toInt().coerceAtLeast(1)
+            val scaledHeight = (currentImage.height * scaleFactor).toInt().coerceAtLeast(1)
+
+            val destRect = android.graphics.Rect(
+                (width / 2) - (scaledWidth / 2),
+                (height / 2) - (scaledHeight / 2),
+                (width / 2) + (scaledWidth / 2),
+                (height / 2) + (scaledHeight / 2)
+            )
+
+            val resultBitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(resultBitmap)
+
+            // Draw the main image
+            canvas.drawBitmap(currentImage, null, destRect, null)
+
+            // Draw composited view overlay
+            (compositedView.drawable as? BitmapDrawable)?.bitmap?.let { overlayBitmap ->
+                if (overlayBitmap.width > 0 && overlayBitmap.height > 0 && !overlayBitmap.isRecycled) {
+                    canvas.drawBitmap(overlayBitmap, null, destRect, null)
+                } else {
+                    Log.w(
+                        TAG,
+                        "Skipping composited overlay in thumbnail: invalid bitmap (w=${overlayBitmap.width}, h=${overlayBitmap.height}, recycled=${overlayBitmap.isRecycled})"
+                    )
+                }
+            }
+
+            // Draw top view overlay
+            (topView.drawable as? BitmapDrawable)?.bitmap?.let { overlayBitmap ->
+                if (overlayBitmap.width > 0 && overlayBitmap.height > 0 && !overlayBitmap.isRecycled) {
+                    canvas.drawBitmap(overlayBitmap, null, destRect, null)
+                } else {
+                    Log.w(
+                        TAG,
+                        "Skipping top overlay in thumbnail: invalid bitmap (w=${overlayBitmap.width}, h=${overlayBitmap.height}, recycled=${overlayBitmap.isRecycled})"
+                    )
+                }
+            }
+            return resultBitmap
+        }
+    */
+
     fun thumbnail(width: Int, height: Int): Bitmap {
         val currentImage = imageBitmap
 
-        // Check if target thumbnail dimensions are valid
         if (width <= 0 || height <= 0) {
-            Log.w(
-                TAG,
-                "Thumbnail dimensions are invalid: targetWidth=$width, targetHeight=$height. Returning 1x1 placeholder."
-            )
-            return createBitmap(
-                1,
-                1,
-                Bitmap.Config.ARGB_8888
-            ).apply { eraseColor(Color.TRANSPARENT) }
+            Log.w(TAG, "Invalid dimensions: $width x $height")
+            return createBitmap(1, 1, Bitmap.Config.ARGB_8888).apply {
+                eraseColor(Color.TRANSPARENT)
+            }
         }
 
-        // Check if there's a valid source image
         if (currentImage == null || currentImage.width <= 0 || currentImage.height <= 0 || currentImage.isRecycled) {
-            Log.w(
-                TAG,
-                "Source image is invalid for thumbnail. Returning empty thumbnail of target size."
-            )
-            return createBitmap(
-                width,
-                height,
-                Bitmap.Config.ARGB_8888
-            ).apply { eraseColor(Color.LTGRAY) }
+            Log.w(TAG, "Invalid source image")
+            return createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+                eraseColor(Color.LTGRAY)
+            }
         }
 
-        val scaleFactor = max(
-            width.toDouble() / currentImage.width,
-            height.toDouble() / currentImage.height
-        ).toFloat()
-
-        // Ensure scaled dimensions are at least 1 to avoid issues with Rect or drawing 0-size bitmaps
-        val scaledWidth = (currentImage.width * scaleFactor).toInt().coerceAtLeast(1)
-        val scaledHeight = (currentImage.height * scaleFactor).toInt().coerceAtLeast(1)
-
-        val destRect = android.graphics.Rect(
-            (width / 2) - (scaledWidth / 2),
-            (height / 2) - (scaledHeight / 2),
-            (width / 2) + (scaledWidth / 2),
-            (height / 2) + (scaledHeight / 2)
+        // Fit inside the target bounds without cropping
+        val scaleFactor = min(
+            width.toFloat() / currentImage.width,
+            height.toFloat() / currentImage.height
         )
+
+        val scaledWidth = (currentImage.width * scaleFactor).toInt()
+        val scaledHeight = (currentImage.height * scaleFactor).toInt()
+
+        val offsetX = (width - scaledWidth) / 2
+        val offsetY = (height - scaledHeight) / 2
+
+        val destRect = Rect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight)
 
         val resultBitmap = createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(resultBitmap)
+        canvas.drawColor(Color.WHITE) // optional background
 
-        // Draw the main image
+        // Draw main image
         canvas.drawBitmap(currentImage, null, destRect, null)
 
-        // Draw composited view overlay
-        (compositedView.drawable as? BitmapDrawable)?.bitmap?.let { overlayBitmap ->
-            if (overlayBitmap.width > 0 && overlayBitmap.height > 0 && !overlayBitmap.isRecycled) {
-                canvas.drawBitmap(overlayBitmap, null, destRect, null)
-            } else {
-                Log.w(
-                    TAG,
-                    "Skipping composited overlay in thumbnail: invalid bitmap (w=${overlayBitmap.width}, h=${overlayBitmap.height}, recycled=${overlayBitmap.isRecycled})"
-                )
+        // Draw overlays (if present)
+        listOf(compositedView.drawable, topView.drawable).forEachIndexed { index, drawable ->
+            (drawable as? BitmapDrawable)?.bitmap?.let { overlay ->
+                if (!overlay.isRecycled && overlay.width > 0 && overlay.height > 0) {
+                    canvas.drawBitmap(overlay, null, destRect, null)
+                } else {
+                    Log.w(TAG, "Overlay ${index + 1} skipped: invalid bitmap")
+                }
             }
         }
 
-        // Draw top view overlay
-        (topView.drawable as? BitmapDrawable)?.bitmap?.let { overlayBitmap ->
-            if (overlayBitmap.width > 0 && overlayBitmap.height > 0 && !overlayBitmap.isRecycled) {
-                canvas.drawBitmap(overlayBitmap, null, destRect, null)
-            } else {
-                Log.w(
-                    TAG,
-                    "Skipping top overlay in thumbnail: invalid bitmap (w=${overlayBitmap.width}, h=${overlayBitmap.height}, recycled=${overlayBitmap.isRecycled})"
-                )
-            }
-        }
         return resultBitmap
     }
+
 
     fun setImage(bitmap: Bitmap?) {
         this.imageBitmap = bitmap
@@ -588,7 +649,7 @@ class RecolourImageView @JvmOverloads constructor(
         val deferredUpdate = DeferredObject<Any?, Throwable, Any?>()
         activeMaskUpdate = deferredUpdate.promise()
 
-        val colorValue = customColor!!.colorValue
+        val colorValue = (customColor ?: ColorProperty()).colorValue
         val valDisableExclusionMask = activeTool == Tool.BRUSH && !isPolygonEnabled
         val valCoverage = currentCoverage
         val currentPaintAreasCopy = PaintAreaVector(paintAreas)
@@ -636,7 +697,7 @@ class RecolourImageView @JvmOverloads constructor(
                         )
                         Utils.matToBitmap(imageMat, newBitmap, true)
                     } catch (e: Exception) {
-                        Log.e("ExifUtils", "processImage: $e", )
+                        Log.e("ExifUtils", "processImage: $e")
                     }
                     Pair(newBitmap, paintMask!!.didRepaint())
                 }
@@ -677,18 +738,18 @@ class RecolourImageView @JvmOverloads constructor(
         freeMaskView.setBrushSize(size)
     }
 
-    fun setColor(imageMaskColor: ImageMaskColor) {
-        this.customColor = imageMaskColor
+    fun setColor(colorProperty: ColorProperty) {
+        this.customColor = colorProperty
         val hsv = FloatArray(3)
-        Color.colorToHSV(imageMaskColor.colorValue, hsv) // Removed .intValue()
+        Color.colorToHSV(colorProperty.colorValue, hsv) // Removed .intValue()
         this.currentCoverage = (min(
             1.0, ((1.0 - hsv[2]).pow(0.45454545454545453) / 1.2) + 0.05
         ).toFloat() * 1000.0f).toInt() / 1000.0f // Used .toInt() for rounding
         listener?.recolourImageViewDidUpdateCoverage(this)
     }
 
-    fun getColor(): ImageMaskColor {
-        return customColor ?: ImageMaskColor()
+    fun getColor(): ColorProperty {
+        return customColor ?: ColorProperty()
     }
 
     fun setListener(listener: Listener?) {
@@ -702,6 +763,7 @@ class RecolourImageView @JvmOverloads constructor(
         freeMaskView.matrix = matrix
         polygonView.matrix = matrix
     }
+
 
     fun undo() {
         clearFreehandImage()
@@ -737,7 +799,7 @@ class RecolourImageView @JvmOverloads constructor(
     private fun undo3() {
         compositedHistory.removeAt(compositedHistory.size - 1)
         usedColorsHistory.removeAt(usedColorsHistory.size - 1)
-        this.currentColor = null
+        this.currentColor = ColorProperty()
         if (compositedHistory.isNotEmpty()) {
             val bitmap = compositedHistory.last()
             updateExclusionMask(bitmap, true)
@@ -759,7 +821,7 @@ class RecolourImageView @JvmOverloads constructor(
         if (paintAreas.size() > 0) {
             paintAreas.removeRange(paintAreas.size() - 1, paintAreas.size())
             if (paintAreas.isEmpty) {
-                this.currentColor = null
+                this.currentColor = ColorProperty()
             }
             listener?.recolourImageViewDidUpdateFillThreshold(this)
         }
@@ -798,10 +860,10 @@ class RecolourImageView @JvmOverloads constructor(
             }
             eraseFromMaskImage(finalEraserBitmap)
         } catch (e: OutOfMemoryError) {
-            Log.e("RecolorImage", "processImage: $e", )
+            Log.e("RecolorImage", "processImage: $e")
             com.whitelabel.android.utils.Utils.showOutOfMemoryToast(context)
         } catch (e: Exception) {
-            Log.e("RecolorImage", "processImage: $e", )
+            Log.e("RecolorImage", "processImage: $e")
         }
         freeMaskView.reset()
     }
@@ -885,7 +947,7 @@ class RecolourImageView @JvmOverloads constructor(
     var isPolygonEnabled: Boolean
         get() = polygonView.isVisible
         set(enabled) {
-            polygonView.visibility = if (enabled) View.VISIBLE else View.GONE
+            polygonView.visibility = if (enabled) VISIBLE else GONE
         }
 
     override fun onInterceptTouchEvent(motionEvent: MotionEvent): Boolean {
@@ -954,13 +1016,13 @@ class RecolourImageView @JvmOverloads constructor(
 
     // This function was already suspend, just making sure it's correctly typed
     // And assuming the Promise type matches what await() expects
-    suspend fun realUsedColorsPromise(): Promise<Set<ImageMaskColor>, Any, Any> {
+    suspend fun realUsedColorsPromise(): Promise<Set<ColorProperty>, Any, Any> {
         return realUsedColorsPromise(compositedImage())
     }
 
     // This function was already suspend, just making sure it's correctly typed
-    private suspend fun realUsedColorsPromise(bitmap: Bitmap?): Promise<Set<ImageMaskColor>, Any, Any> {
-        val deferred = DeferredObject<Set<ImageMaskColor>, Any, Any>()
+    private fun realUsedColorsPromise(bitmap: Bitmap?): Promise<Set<ColorProperty>, Any, Any> {
+        val deferred = DeferredObject<Set<ColorProperty>, Any, Any>()
         // Launch a coroutine to call the suspend function and resolve the deferred
         viewScope.launch {
             try {
@@ -974,21 +1036,21 @@ class RecolourImageView @JvmOverloads constructor(
     }
 
     // Renamed the original suspend fun to avoid signature clash if types were different
-    private suspend fun realUsedColorsSuspend(bitmap: Bitmap?): Set<ImageMaskColor> =
+    private suspend fun realUsedColorsSuspend(bitmap: Bitmap?): Set<ColorProperty> =
         withContext(Dispatchers.Default) {
             if (bitmap == null || usedColorsHistory.isEmpty()) {
                 return@withContext emptySet()
             }
 
             val lastUsedColors = usedColorsHistory.lastOrNull() ?: emptySet()
-            val combinedSet = HashSet<ImageMaskColor>(lastUsedColors)
+            val combinedSet = HashSet<ColorProperty>(lastUsedColors)
             customColor?.let { combinedSet.add(it) } // Use customColor
 
             val mat = Mat()
             try {
                 Utils.bitmapToMat(bitmap, mat)
             } catch (e: Exception) {
-
+                Log.e(TAG, "realUsedColorsSuspend: ${e.cause} ${e.localizedMessage}")
                 return@withContext emptySet()
             }
 
@@ -1019,17 +1081,17 @@ class RecolourImageView @JvmOverloads constructor(
             }
         }
 
-    suspend fun save(view: View, str: String, label: String, context2: Context): Boolean =
+    suspend fun save(view: View, str: String, label: String, context: Context): Boolean =
         withContext(Dispatchers.IO) {
             val measuredWidth = view.measuredWidth.toFloat()
             val measuredHeight = view.measuredHeight.toFloat()
             val thumb = thumbnail(measuredWidth.toInt(), measuredHeight.toInt()) // Renamed
-            val drawable: Drawable? =
-                ResourcesCompat.getDrawable(context2.resources, R.drawable.share, null)
+//            val drawable: Drawable? =
+//                ResourcesCompat.getDrawable(context.resources, R.drawable.share, null)
 
             // The original code used CompletableDeferred, but realUsedColors() returns a Promise.
             // We need to await the promise.
-            val imageMaskColorSets: Set<ImageMaskColor> = try {
+            val colorPropertySets: Set<ColorProperty> = try {
                 realUsedColorsPromise(compositedImage()).await() // Await the promise
             } catch (e: Exception) {
                 Log.d(TAG, "Error getting real used colors for save: $e")
@@ -1037,8 +1099,8 @@ class RecolourImageView @JvmOverloads constructor(
             }
 
             try {
-                val filesDir = context2.filesDir
-                val protosFromColors = protosFromColors(imageMaskColorSets)
+                val filesDir = context.filesDir
+                val protosFromColors = protosFromColors(colorPropertySets)
 
                 val maxScale = max(
                     (measuredWidth / thumb.width).toDouble(),
@@ -1066,7 +1128,7 @@ class RecolourImageView @JvmOverloads constructor(
                 }
                 canvas.drawRect(rectF, paint)
 
-                val displayColors = imageMaskColorSets.take(4)
+                val displayColors = colorPropertySets.take(4)
                 val swatchSize =
                     (finalRenderWidth.toFloat() - ((displayColors.size - 1) * 5.0f)) / displayColors.size
                 var currentX = 0.0f
@@ -1122,18 +1184,20 @@ class RecolourImageView @JvmOverloads constructor(
                     currentX += swatchSize + 5.0f
                 }
 
-                drawable?.let {
-                    val logoRight = finalRenderWidth - 20
-                    it.setBounds(
-                        logoRight - it.intrinsicWidth,
-                        20,
-                        logoRight,
-                        it.intrinsicHeight + 20
-                    )
-                    it.draw(canvas)
-                }
+//                drawable?.let {
+//                    val logoRight = finalRenderWidth - 20
+//                    it.setBounds(
+//                        logoRight - it.intrinsicWidth,
+//                        20,
+//                        logoRight,
+//                        it.intrinsicHeight + 20
+//                    )
+//                    it.draw(canvas)
+//                }
 
-                File(filesDir, "recolor").mkdirs()
+                val fileDire = File(filesDir, "recolor")
+                Log.d(TAG, "save: ${fileDire.absolutePath}")
+                fileDire.mkdirs()
                 val byteArrayOutputStream = ByteArrayOutputStream()
                 resultBitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream)
                 val byteArray = byteArrayOutputStream.toByteArray()
@@ -1161,11 +1225,11 @@ class RecolourImageView @JvmOverloads constructor(
         }
     }
 
-    suspend fun load(str: String, context: Context) {
-        try {
+    suspend fun load(str: String, context: Context): Boolean {
+        return try {
             val filesDir = context.filesDir
             val (loadedImage, loadedComposited, loadedUsedColors) = withContext(Dispatchers.IO) {
-                val allColors = mutableListOf<ImageMaskColor>()
+                val allColors = mutableListOf<ColorProperty>()
                 CoroutineUtils.getAllColors(context, allColors)
 
                 val file = File(filesDir, "recolor/$str.recolor") // Assuming .recolor extension
@@ -1187,22 +1251,23 @@ class RecolourImageView @JvmOverloads constructor(
             compositedView.setImageBitmap(loadedComposited)
 
             usedColorsHistory = arrayListOf()
-            usedColorsHistory.add(HashSet<ImageMaskColor>().apply { addAll(loadedUsedColors) })
-
+            usedColorsHistory.add(HashSet<ColorProperty>().apply { addAll(loadedUsedColors) })
+            true
         } catch (e: Exception) {
             Log.d(TAG, "Error loading image: ${e.message}", e)
+            false
         }
     }
 
-    suspend fun sharingImage(view: View, context: Context): Bitmap? =
+    suspend fun sharingImage(view: View): Bitmap? =
         withContext(Dispatchers.Default) {
             val measuredWidth = view.measuredWidth.toFloat()
             val measuredHeight = view.measuredHeight.toFloat()
             val thumb = thumbnail(measuredWidth.toInt(), measuredHeight.toInt())
 
-            val drawable = ResourcesCompat.getDrawable(
-                context.resources, R.drawable.share, null
-            ) ?: return@withContext null
+//            val drawable = ResourcesCompat.getDrawable(
+//                context.resources, R.drawable.share, null
+//            ) ?: return@withContext null
 
             // Ensure history is committed before getting colors
             withContext(Dispatchers.Main) { // Ensure maybeCommitHistory is called on main thread if it modifies UI
@@ -1210,7 +1275,7 @@ class RecolourImageView @JvmOverloads constructor(
             }
 
 
-            val colorSet: Set<ImageMaskColor> = try {
+            val colorSet: Set<ColorProperty> = try {
                 realUsedColorsPromise(compositedImage()).await()
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting real used colors for sharing: $e")
@@ -1293,14 +1358,19 @@ class RecolourImageView @JvmOverloads constructor(
                 xOffset += swatchWidth + 5f
             }
 
-            val logoRight = finalWidth - 20
-            drawable.setBounds(
-                logoRight - drawable.intrinsicWidth, 20, logoRight, 20 + drawable.intrinsicHeight
-            )
-            drawable.draw(canvas)
+            // Draw the logo in the top-right corner
+//            val logoRight = measuredWidth - 20
+//            drawable.setBounds(
+//                logoRight - drawable.intrinsicWidth,
+//                20,
+//                logoRight,
+//                20 + drawable.intrinsicHeight
+//            )
+//            drawable.draw(canvas)
 
             resultBitmap
         }
+
 
     val isImageChanged: Boolean
         get() = compositedHistory.isNotEmpty() // Simplified
@@ -1322,7 +1392,7 @@ class RecolourImageView @JvmOverloads constructor(
             if (usedColorsHistory.isNotEmpty()) {
                 usedColorsHistory.removeAt(usedColorsHistory.size - 1)
             }
-            currentColor = null
+            currentColor = ColorProperty()
         }
 
         if (paintAreas.isEmpty) { // Check isEmpty on PaintAreaVector
@@ -1361,22 +1431,22 @@ class RecolourImageView @JvmOverloads constructor(
             }
         }
 
-        fun protosFromColors(set: Set<ImageMaskColor>): List<RecolorImageColor> {
+        fun protosFromColors(set: Set<ColorProperty>): List<RecolorImageColor> {
             return set.map { colorPicker ->
                 RecolorImageColor.Builder()
                     .name(colorPicker.colorName)
                     .code(colorPicker.colorCode)
                     .rgb(colorPicker.colorValue)
-                    .fandeckName(colorPicker.fandeckName)
-                    .fandeckId(colorPicker.fandeckId.toString()) // Ensure fandeckId is String
+                    .fandeckName(colorPicker.colorCatalogue)
+                    .fandeckId(colorPicker.id.toString()) // Ensure fandeckId is String
                     .build()
             }
         }
 
         fun colorsFromProtos(
             protoList: List<RecolorImageColor>,
-            allColorsList: List<ImageMaskColor>
-        ): List<ImageMaskColor> {
+            allColorsList: List<ColorProperty>
+        ): List<ColorProperty> {
             if (protoList.isEmpty()) {
                 return emptyList()
             }
@@ -1387,9 +1457,9 @@ class RecolourImageView @JvmOverloads constructor(
                 protoMap[key] = recolorImageColor
             }
 
-            val resultList: ArrayList<ImageMaskColor> = ArrayList()
+            val resultList: ArrayList<ColorProperty> = ArrayList()
             for (colorPicker in allColorsList) {
-                val key = "${colorPicker.fandeckId}:${colorPicker.colorCode}"
+                val key = "${colorPicker.id}:${colorPicker.colorCode}"
                 if (protoMap.containsKey(key)) {
                     resultList.add(colorPicker)
                 }

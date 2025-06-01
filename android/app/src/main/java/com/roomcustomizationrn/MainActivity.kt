@@ -3,6 +3,7 @@ package com.roomcustomizationrn
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import android.os.Bundle
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -12,8 +13,9 @@ import com.whitelabel.android.interfaces.ColorProvider
 import com.whitelabel.android.interfaces.ImageProvider
 import com.whitelabel.android.interfaces.PaintButtonClickListener
 import com.whitelabel.android.interfaces.PaintInterfaceRegistry
-import com.whitelabel.android.ui.paint.fragment.PaintClickEvent
-import com.whitelabel.android.utils.ActivityLoader.loadPaintActivity
+import com.whitelabel.android.ui.paint.fragment.BottomSheetClickEvent
+import com.whitelabel.android.utils.ActivityLoader.loadPaintFragment
+
 
 class MainActivity : ReactActivity(), PaintButtonClickListener {
 
@@ -35,6 +37,16 @@ class MainActivity : ReactActivity(), PaintButtonClickListener {
 
   override fun getMainComponentName(): String = "RoomCustomizationRN"
 
+  private var _fragmentContainerId: Int = 0
+  val fragmentContainerId: Int
+    get() = _fragmentContainerId
+
+
+  override fun onCreate(savedInstanceState: Bundle?) {
+      super.onCreate(savedInstanceState)
+      _fragmentContainerId = loadPaintFragment()
+  }
+
   override fun onStart() {
             super.onStart()
             // Register this activity with the PaintInterfaceRegistry
@@ -48,7 +60,7 @@ class MainActivity : ReactActivity(), PaintButtonClickListener {
           }
 
           // Implementation of PaintButtonClickListener
-  override fun onPaintButtonClicked(event: PaintClickEvent) {
+  override fun onPaintButtonClicked(event: BottomSheetClickEvent) {
                 // Forward the event to the PaintModule to send to React Native
                 PaintModule.getInstance()?.handlePaintClickEvent(event)
             }
@@ -61,4 +73,3 @@ class MainActivity : ReactActivity(), PaintButtonClickListener {
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
 
 }
-

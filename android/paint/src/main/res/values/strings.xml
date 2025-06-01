@@ -13,9 +13,18 @@
     <string name="erase">Erase</string>
     <string name="button_ok">Ok</string>
     <string name="no">No</string>
+    <string name="save">Save Color</string>
     <string name="yes">Yes</string>
     <string name="choose_from_camera">Choose Camera</string>
     <string name="gallery">Gallery</string>
     <string name="choose_from_album">Choose from gallery</string>
     <string name="close">Close</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="share_photo">Share Photo</string>
+    <string name="send_to_color_consultant">Send to Color Consultant</string>
+    <string name="save_to_project">Save to Project</string>
+    <string name="save_to_gallery">Save to Gallery</string>
+    <string name="back">Back</string>
+    <string name="logo">Logo</string>
 </resources>

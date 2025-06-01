@@ -15,8 +15,8 @@ import com.whitelabel.android.data.model.ImageMaskColor
 import com.whitelabel.android.interfaces.ColorProvider
 import com.whitelabel.android.interfaces.ImageProvider
 import com.whitelabel.android.interfaces.PaintInterfaceRegistry
-import com.whitelabel.android.ui.paint.fragment.PaintClickEvent
-import com.whitelabel.android.utils.ActivityLoader.loadPaintActivity
+import com.whitelabel.android.ui.paint.fragment.BottomSheetClickEvent
+import com.whitelabel.android.utils.ActivityLoader.showPaintFragment
 import java.io.ByteArrayOutputStream
 
 /**
@@ -37,66 +37,56 @@ class PaintModule(private val reactContext: ReactApplicationContext) : ReactCont
 
     override fun getName(): String = NAME
 
-    /**
-     * Launches the PaintActivity with the specified color and image URI.
-     *
-     * @param color The hex string representing the color to use (e.g., "#FFFFFF").
-     * @param imageUri The URI of the image to be used in the activity.
-     * @param fandeckId Optional ID representing the fandeck. Defaults to -1 if not provided.
-     * @param fandeckName Optional name of the fandeck. Defaults to an empty string if not provided.
-     * @param colorName Optional name of the color. Defaults to "Default Color" if not provided.
-     */
     @ReactMethod
-    fun startPaintActivity(
+    fun showPaintFragment(
         color: String,
         imageUri: String,
         fandeckId: Int = -1,
         fandeckName: String = "",
-        colorName: String = "Default Color"
+        colorName: String = "Default Color",
+        colorOptionsListGson: String = "",
     ) {
-        val activity = reactContext.currentActivity ?: return
-        val uri = Uri.parse(imageUri)
-        activity.loadPaintActivity(color, uri, fandeckId, fandeckName, colorName)
-    }
+            val activity = reactContext.currentActivity as? MainActivity ?: return
+            val fragmentContainerId = activity.fragmentContainerId
+            activity.showPaintFragment(
+                color = color, // Default color
+                imageUri = Uri.parse(imageUri), // No image URI for now
+                fandeckId = fandeckId, // Default fandeck ID
+                fandeckName = fandeckName, // Default fandeck name
+                colorName = colorName,
+                fragmentContainerId = fragmentContainerId,
+                colorOptionsListGson = colorOptionsListGson
+            )
+        }
 
     /**
      * Handles paint click events from the native side and forwards them to React Native.
      *
      * @param event The PaintClickEvent to handle and forward to React Native.
      */
-    fun handlePaintClickEvent(event: PaintClickEvent) {
+    fun handlePaintClickEvent(event: BottomSheetClickEvent) {
         val params = Arguments.createMap()
 
         when (event) {
-            is PaintClickEvent.ColorPalette -> {
-                params.putString("type", "colorPalette")
-                emitEvent("paintButtonClicked", params)
-            }
-            is PaintClickEvent.UndoClick -> {
-                params.putString("type", "undoClick")
-                emitEvent("paintButtonClicked", params)
-            }
-            is PaintClickEvent.EraserClick -> {
-                params.putString("type", "eraserClick")
-                emitEvent("paintButtonClicked", params)
-            }
-            is PaintClickEvent.ShareClick -> {
-                params.putString("type", "shareClick")
+            is BottomSheetClickEvent.SaveToProjectClick -> {
+                params.putString("type", "saveToProjectClick")
                 // Convert bitmap to base64 string
                 val base64Image = bitmapToBase64(event.bitmap)
                 params.putString("image", base64Image)
                 emitEvent("paintButtonClicked", params)
             }
-            is PaintClickEvent.PaintRoll -> {
-                params.putString("type", "paintRoll")
+
+            is BottomSheetClickEvent.SendToColorConsultationClick -> {
+                params.putString("type", "sendToColorConsultationClick")
+                // Convert bitmap to base64 string
+                val base64Image = bitmapToBase64(event.bitmap)
+                params.putString("image", base64Image)
                 emitEvent("paintButtonClicked", params)
             }
-            is PaintClickEvent.ImageRequest -> {
-                params.putString("type", "imageRequest")
-                emitEvent("paintButtonClicked", params)
-            }
-            is PaintClickEvent.NewImageRequest -> {
-                params.putString("type", "newImageRequest")
+
+            is BottomSheetClickEvent.SaveColorClick -> {
+                params.putString("type", "saveColorClick")
+                params.putString("color", event.hexColorString)
                 emitEvent("paintButtonClicked", params)
             }
         }

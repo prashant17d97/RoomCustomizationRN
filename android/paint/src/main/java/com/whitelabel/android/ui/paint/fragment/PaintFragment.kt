@@ -237,7 +237,7 @@ class PaintFragment : Fragment(), RecolourImageView.Listener {
             View.VISIBLE.takeIf { colorOptionsList.isNotEmpty() } ?: View.GONE
         binding.colorOptionList.layoutManager =
             StaggeredGridLayoutManager(
-                (colorOptionsList.size / 5.0).roundToInt(),
+                maxOf(1, (colorOptionsList.size / 5.0).roundToInt()),
                 RecyclerView.HORIZONTAL
             )
         binding.colorOptionList.adapter = ColorAdapter(

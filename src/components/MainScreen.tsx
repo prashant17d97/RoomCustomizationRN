@@ -255,7 +255,7 @@ const MainScreen = () => {
         // Use the native color's properties if available, otherwise use defaults
         const id = nativeColor?.id || -1;
         const colorCatalogue = nativeColor?.colorCatalogue || '';
-        const colorName = nativeColor?.colorName || 'Selected Color';
+        const colorName = nativeColor?.colorName || nativeColor?.colorCode || 'Selected Color';
 
         PaintModule.showPaintFragment(
           activeColor,
